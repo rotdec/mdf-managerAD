@@ -11,35 +11,28 @@ import * as XLSX from 'xlsx';
 // SUPABASE CLIENT
 // ============================================================
 const SUPABASE_URL = 'https://phpzvynjccegalkezlnb.supabase.co';
-const SUPABASE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocHp2eW5qY2NlZ2Fsa2V6bG5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1Mjk2MTAsImV4cCI6MjA5NTEwNTYxMH0.fHZOlPnPa-oEyx5KUDsiV_cpVVsriWZqB6R2H50HFoE';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocHp2eW5qY2NlZ2Fsa2V6bG5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1Mjk2MTAsImV4cCI6MjA5NTEwNTYxMH0.fHZOlPnPa-oEyx5KUDsiV_cpVVsriWZqB6R2H50HFoE';
 
 const supa = (() => {
   const headers = {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
     'Content-Type': 'application/json',
-    Prefer: 'return=representation',
+    'Prefer': 'return=representation',
   };
-  const url = (table, params = '') =>
-    `${SUPABASE_URL}/rest/v1/${table}${params}`;
+  const url = (table, params = '') => `${SUPABASE_URL}/rest/v1/${table}${params}`;
 
   return {
     // SELECT
     from: (table) => ({
       select: async (params = '') => {
-        const queryStr = params
-          ? `?${params}&order=created_at.asc`
-          : '?order=created_at.asc';
+        const queryStr = params ? `?${params}&order=created_at.asc` : '?order=created_at.asc';
         const res = await fetch(url(table, queryStr), { headers });
         if (!res.ok) throw new Error(await res.text());
         return res.json();
       },
       selectOne: async (col, val) => {
-        const res = await fetch(
-          url(table, `?${col}=eq.${encodeURIComponent(val)}`),
-          { headers }
-        );
+        const res = await fetch(url(table, `?${col}=eq.${encodeURIComponent(val)}`), { headers });
         if (!res.ok) throw new Error(await res.text());
         const rows = await res.json();
         return rows[0] || null;
@@ -59,10 +52,7 @@ const supa = (() => {
     upsert: async (table, data) => {
       const res = await fetch(url(table), {
         method: 'POST',
-        headers: {
-          ...headers,
-          Prefer: 'resolution=merge-duplicates,return=representation',
-        },
+        headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=representation' },
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -70,26 +60,20 @@ const supa = (() => {
     },
     // UPDATE
     update: async (table, col, val, data) => {
-      const res = await fetch(
-        url(table, `?${col}=eq.${encodeURIComponent(val)}`),
-        {
-          method: 'PATCH',
-          headers,
-          body: JSON.stringify(data),
-        }
-      );
+      const res = await fetch(url(table, `?${col}=eq.${encodeURIComponent(val)}`), {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(data),
+      });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
     // DELETE
     delete: async (table, col, val) => {
-      const res = await fetch(
-        url(table, `?${col}=eq.${encodeURIComponent(val)}`),
-        {
-          method: 'DELETE',
-          headers,
-        }
-      );
+      const res = await fetch(url(table, `?${col}=eq.${encodeURIComponent(val)}`), {
+        method: 'DELETE',
+        headers,
+      });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
@@ -98,54 +82,23 @@ const supa = (() => {
       let ws = null;
       let handlers = {};
       const connect = () => {
-        const wsUrl =
-          SUPABASE_URL.replace('https://', 'wss://') +
-          '/realtime/v1/websocket?apikey=' +
-          SUPABASE_KEY +
-          '&vsn=1.0.0';
+        const wsUrl = SUPABASE_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPABASE_KEY + '&vsn=1.0.0';
         try {
           ws = new WebSocket(wsUrl);
           ws.onopen = () => {
-            ws.send(
-              JSON.stringify({
-                topic: `realtime:${name}`,
-                event: 'phx_join',
-                payload: {
-                  config: {
-                    broadcast: { ack: false },
-                    presence: { key: '' },
-                    postgres_changes: Object.keys(handlers).map((t) => ({
-                      event: '*',
-                      schema: 'public',
-                      table: t,
-                    })),
-                  },
-                },
-                ref: '1',
-              })
-            );
+            ws.send(JSON.stringify({ topic: `realtime:${name}`, event: 'phx_join', payload: { config: { broadcast: { ack: false }, presence: { key: '' }, postgres_changes: Object.keys(handlers).map(t => ({ event: '*', schema: 'public', table: t })) } }, ref: '1' }));
           };
           ws.onmessage = (e) => {
             try {
               const msg = JSON.parse(e.data);
               if (msg.event === 'postgres_changes') {
-                const {
-                  table,
-                  eventType,
-                  new: newRow,
-                  old: oldRow,
-                } = msg.payload.data || {};
-                if (handlers[table])
-                  handlers[table].forEach((h) =>
-                    h({ eventType, newRow, oldRow })
-                  );
+                const { table, eventType, new: newRow, old: oldRow } = msg.payload.data || {};
+                if (handlers[table]) handlers[table].forEach(h => h({ eventType, newRow, oldRow }));
               }
             } catch {}
           };
           ws.onerror = () => {};
-          ws.onclose = () => {
-            setTimeout(connect, 3000);
-          };
+          ws.onclose = () => { setTimeout(connect, 3000); };
         } catch {}
       };
       return {
@@ -154,14 +107,7 @@ const supa = (() => {
           handlers[table].push(handler);
           return this;
         },
-        subscribe: () => {
-          connect();
-          return {
-            unsubscribe: () => {
-              if (ws) ws.close();
-            },
-          };
-        },
+        subscribe: () => { connect(); return { unsubscribe: () => { if (ws) ws.close(); } }; },
       };
     },
   };
@@ -171,51 +117,30 @@ const supa = (() => {
 // DB HELPERS: convert DB row <-> App format
 // ============================================================
 const dbToPartner = (r) => ({
-  id: r.id,
-  name: r.name,
-  region: r.region,
-  subregion: r.subregion,
-  country: r.country,
-  type: r.type,
-  tier: r.tier,
-  allocated: Number(r.allocated || 0),
-  spent: Number(r.spent || 0),
-  pending: Number(r.pending || 0),
-  status: r.status || 'Active',
-  note: r.note || '',
-  contactName: r.contact_name,
-  contactEmail: r.contact_email,
+  id: r.id, name: r.name, region: r.region, subregion: r.subregion,
+  country: r.country, type: r.type, tier: r.tier,
+  allocated: Number(r.allocated || 0), spent: Number(r.spent || 0), pending: Number(r.pending || 0),
+  status: r.status || 'Active', note: r.note || '',
+  contactName: r.contact_name, contactEmail: r.contact_email,
   accountManager: r.account_manager,
   portalEmail: r.portal_email,
   portalPassword: r.portal_password_hash, // SECURITY TODO (BUG-007): must be bcrypt hashed in production
 });
 
 const partnerToDB = (p) => ({
-  id: p.id,
-  name: p.name,
-  region: p.region,
-  subregion: p.subregion,
-  country: p.country,
-  type: p.type,
-  tier: p.tier,
-  allocated: p.allocated,
-  spent: p.spent,
-  pending: p.pending,
-  status: p.status,
-  note: p.note || '',
-  contact_name: p.contactName,
-  contact_email: p.contactEmail,
+  id: p.id, name: p.name, region: p.region, subregion: p.subregion,
+  country: p.country, type: p.type, tier: p.tier,
+  allocated: p.allocated, spent: p.spent, pending: p.pending,
+  status: p.status, note: p.note || '',
+  contact_name: p.contactName, contact_email: p.contactEmail,
   account_manager: p.accountManager,
 });
 
 const dbToRequest = (r, items) => ({
-  id: r.id,
-  partner: r.partner_name,
-  submitted: r.submitted,
-  status: r.status,
+  id: r.id, partner: r.partner_name,
+  submitted: r.submitted, status: r.status,
   assignedTo: r.assigned_to || '',
-  poNumber: r.po_number || '',
-  note: r.note || '',
+  poNumber: r.po_number || '', note: r.note || '',
   partnerNotified: r.partner_notified || false,
   notifiedAt: r.notified_at || '',
   bpGeneratedAt: r.bp_generated_at || '',
@@ -224,49 +149,33 @@ const dbToRequest = (r, items) => ({
 });
 
 const dbToItem = (it) => ({
-  id: it.id,
-  tactic: it.tactic,
-  title: it.title,
+  id: it.id, tactic: it.tactic, title: it.title,
   productGroup: it.product_group,
-  targetSolutions:
-    typeof it.target_solutions === 'string'
-      ? JSON.parse(it.target_solutions)
-      : it.target_solutions || [],
+  targetSolutions: typeof it.target_solutions === 'string' ? JSON.parse(it.target_solutions) : (it.target_solutions || []),
   amount: Number(it.amount || 0),
   mdfRequest: Number(it.mdf_request || 0),
   localCurrency: it.local_currency || 'EUR',
-  fyHalf: it.fy_half,
-  fyQuarter: it.fy_quarter,
-  month: it.month,
-  period: it.period,
-  where: it.where_field,
-  targetAudience: it.target_audience,
-  targetAttendees: it.target_attendees,
-  objective: it.objective,
+  fyHalf: it.fy_half, fyQuarter: it.fy_quarter,
+  month: it.month, period: it.period,
+  where: it.where_field, targetAudience: it.target_audience,
+  targetAttendees: it.target_attendees, objective: it.objective,
   itemStatus: it.item_status || 'request_submitted',
   assignedTo: it.assigned_to || '',
   allocadiaId: it.allocadia_id || '',
   campaignId: it.campaign_id || '',
-  cancelReason: it.cancel_reason,
-  postponedTo: it.postponed_to,
+  cancelReason: it.cancel_reason, postponedTo: it.postponed_to,
   acknowledged: it.acknowledged || false,
 });
 
 const itemToDB = (it, requestId) => ({
-  id: it.id || `${requestId}-${Date.now()}`,
+  id: it.id || (`${requestId}-${Date.now()}`),
   request_id: requestId,
   tactic: it.tactic || '',
   title: it.title || it.objective || '',
   product_group: it.productGroup || it.product_group || '',
-  target_solutions: JSON.stringify(
-    Array.isArray(it.targetSolutions)
-      ? it.targetSolutions
-      : [it.targetSolutions || '']
-  ),
+  target_solutions: JSON.stringify(Array.isArray(it.targetSolutions) ? it.targetSolutions : [it.targetSolutions || '']),
   amount: Number(it.amount || 0),
-  mdf_request: Number(
-    it.mdfRequest || it.mdf_request || Math.round((it.amount || 0) * 0.5)
-  ),
+  mdf_request: Number(it.mdfRequest || it.mdf_request || Math.round((it.amount || 0) * 0.5)),
   local_currency: it.localCurrency || it.local_currency || 'EUR',
   fy_half: it.fyHalf || it.fy_half || '',
   fy_quarter: it.fyQuarter || it.fy_quarter || '',
@@ -286,51 +195,35 @@ const itemToDB = (it, requestId) => ({
 });
 
 const dbToClaim = (r) => ({
-  id: r.id,
-  reqId: r.req_id,
-  itemId: r.item_id,
-  partner: r.partner,
-  activity: r.activity,
+  id: r.id, reqId: r.req_id, itemId: r.item_id,
+  partner: r.partner, activity: r.activity,
   claimAmount: Number(r.claim_amount || 0),
   vatPct: Number(r.vat_pct || 0),
   totalValue: Number(r.total_value || 0),
   currency: r.currency || 'EUR',
   submitted: r.submitted,
   status: r.status,
-  files: typeof r.files === 'string' ? JSON.parse(r.files) : r.files || {},
+  files: typeof r.files === 'string' ? JSON.parse(r.files) : (r.files || {}),
   notes: r.notes || '',
-  fyHalf: r.fy_half,
-  fyQuarter: r.fy_quarter,
-  month: r.month,
+  fyHalf: r.fy_half, fyQuarter: r.fy_quarter, month: r.month,
   reviewNotesMarketing: r.review_notes_marketing || '',
   reviewNotesFinance: r.review_notes_finance || '',
-  statusHistory:
-    typeof r.status_history === 'string'
-      ? JSON.parse(r.status_history)
-      : r.status_history || [],
+  statusHistory: typeof r.status_history === 'string' ? JSON.parse(r.status_history) : (r.status_history || []),
 });
 
 const claimToDB = (c) => ({
-  id: c.id,
-  req_id: c.reqId,
-  item_id: c.itemId,
-  partner: c.partner,
-  activity: c.activity,
-  claim_amount: c.claimAmount,
-  vat_pct: c.vatPct,
-  total_value: c.totalValue,
-  currency: c.currency,
-  submitted: c.submitted,
-  status: c.status,
+  id: c.id, req_id: c.reqId, item_id: c.itemId,
+  partner: c.partner, activity: c.activity,
+  claim_amount: c.claimAmount, vat_pct: c.vatPct, total_value: c.totalValue,
+  currency: c.currency, submitted: c.submitted, status: c.status,
   files: JSON.stringify(c.files || {}),
   notes: c.notes || '',
-  fy_half: c.fyHalf,
-  fy_quarter: c.fyQuarter,
-  month: c.month,
+  fy_half: c.fyHalf, fy_quarter: c.fyQuarter, month: c.month,
   review_notes_marketing: c.reviewNotesMarketing || '',
   review_notes_finance: c.reviewNotesFinance || '',
   status_history: JSON.stringify(c.statusHistory || []),
 });
+
 
 const DARK_THEME = {
   bg: '#07090f',
@@ -913,9 +806,9 @@ const WORKFLOW_STEPS = [
   },
   {
     id: 'approved',
-    label: 'Approved',
-    short: 'Approved',
-    color: '#10b981',
+    label: 'In Review',
+    short: 'In Review',
+    color: '#f59e0b',
     icon: '2',
   },
   {
@@ -934,9 +827,9 @@ const WORKFLOW_STEPS = [
   },
   {
     id: 'po_raised',
-    label: 'PO Raised',
-    short: 'PO Raised',
-    color: '#3b82f6',
+    label: 'Approved',
+    short: 'Approved',
+    color: '#10b981',
     icon: '5',
   },
   {
@@ -1028,12 +921,7 @@ const SAMPLE_CLAIMS = [
     reviewNotesMarketing: '',
     reviewNotesFinance: '',
     statusHistory: [
-      {
-        status: 'submitted',
-        by: 'TechVision Ltd',
-        at: '2026-10-15 09:00',
-        note: 'Claim submitted via portal',
-      },
+      { status: 'submitted', by: 'TechVision Ltd', at: '2026-10-15 09:00', note: 'Claim submitted via portal' },
     ],
   },
   {
@@ -1063,18 +951,8 @@ const SAMPLE_CLAIMS = [
     reviewNotesMarketing: 'Checking venue invoice details.',
     reviewNotesFinance: '',
     statusHistory: [
-      {
-        status: 'submitted',
-        by: 'CloudSys GmbH',
-        at: '2026-10-20 11:30',
-        note: 'Claim submitted via portal',
-      },
-      {
-        status: 'marketing_review',
-        by: 'Decio A.',
-        at: '2026-10-21 09:15',
-        note: 'Checking venue invoice details.',
-      },
+      { status: 'submitted', by: 'CloudSys GmbH', at: '2026-10-20 11:30', note: 'Claim submitted via portal' },
+      { status: 'marketing_review', by: 'Decio A.', at: '2026-10-21 09:15', note: 'Checking venue invoice details.' },
     ],
   },
   {
@@ -1104,24 +982,9 @@ const SAMPLE_CLAIMS = [
     reviewNotesMarketing: 'Approved by marketing - strong ROI.',
     reviewNotesFinance: 'Checking documentation.',
     statusHistory: [
-      {
-        status: 'submitted',
-        by: 'American Tech Corp',
-        at: '2026-10-28 14:00',
-        note: 'Claim submitted via portal',
-      },
-      {
-        status: 'marketing_review',
-        by: 'Decio A.',
-        at: '2026-10-29 10:00',
-        note: 'Started marketing review',
-      },
-      {
-        status: 'finance_review',
-        by: 'Decio A.',
-        at: '2026-10-30 11:45',
-        note: 'Approved by marketing - strong ROI.',
-      },
+      { status: 'submitted', by: 'American Tech Corp', at: '2026-10-28 14:00', note: 'Claim submitted via portal' },
+      { status: 'marketing_review', by: 'Decio A.', at: '2026-10-29 10:00', note: 'Started marketing review' },
+      { status: 'finance_review', by: 'Decio A.', at: '2026-10-30 11:45', note: 'Approved by marketing - strong ROI.' },
     ],
   },
   {
@@ -1150,30 +1013,10 @@ const SAMPLE_CLAIMS = [
     reviewNotesMarketing: 'Approved.',
     reviewNotesFinance: 'VAT verified. Ready to pay.',
     statusHistory: [
-      {
-        status: 'submitted',
-        by: 'France Digitale',
-        at: '2026-01-20 08:00',
-        note: 'Claim submitted via portal',
-      },
-      {
-        status: 'marketing_review',
-        by: 'Kaila',
-        at: '2026-01-21 09:00',
-        note: 'Started review',
-      },
-      {
-        status: 'finance_review',
-        by: 'Kaila',
-        at: '2026-01-22 14:30',
-        note: 'Approved.',
-      },
-      {
-        status: 'approved',
-        by: 'Finance',
-        at: '2026-01-23 10:00',
-        note: 'VAT verified. Ready to pay.',
-      },
+      { status: 'submitted', by: 'France Digitale', at: '2026-01-20 08:00', note: 'Claim submitted via portal' },
+      { status: 'marketing_review', by: 'Kaila', at: '2026-01-21 09:00', note: 'Started review' },
+      { status: 'finance_review', by: 'Kaila', at: '2026-01-22 14:30', note: 'Approved.' },
+      { status: 'approved', by: 'Finance', at: '2026-01-23 10:00', note: 'VAT verified. Ready to pay.' },
     ],
   },
   {
@@ -1203,24 +1046,9 @@ const SAMPLE_CLAIMS = [
       'On hold - partner invoice missing campaign dates. Please resubmit.',
     reviewNotesFinance: '',
     statusHistory: [
-      {
-        status: 'submitted',
-        by: 'TechVision Ltd',
-        at: '2026-10-29 16:00',
-        note: 'Claim submitted via portal',
-      },
-      {
-        status: 'marketing_review',
-        by: 'Decio A.',
-        at: '2026-10-30 09:30',
-        note: 'Started review',
-      },
-      {
-        status: 'on_hold',
-        by: 'Decio A.',
-        at: '2026-10-30 10:15',
-        note: 'On hold - partner invoice missing campaign dates. Please resubmit.',
-      },
+      { status: 'submitted', by: 'TechVision Ltd', at: '2026-10-29 16:00', note: 'Claim submitted via portal' },
+      { status: 'marketing_review', by: 'Decio A.', at: '2026-10-30 09:30', note: 'Started review' },
+      { status: 'on_hold', by: 'Decio A.', at: '2026-10-30 10:15', note: 'On hold - partner invoice missing campaign dates. Please resubmit.' },
     ],
   },
   {
@@ -1249,36 +1077,11 @@ const SAMPLE_CLAIMS = [
     reviewNotesMarketing: 'Approved.',
     reviewNotesFinance: 'Paid on 2026-04-28. Bank transfer confirmed.',
     statusHistory: [
-      {
-        status: 'submitted',
-        by: 'American Tech Corp',
-        at: '2026-04-10 09:00',
-        note: 'Claim submitted via portal',
-      },
-      {
-        status: 'marketing_review',
-        by: 'Umair',
-        at: '2026-04-11 10:00',
-        note: 'Started review',
-      },
-      {
-        status: 'finance_review',
-        by: 'Umair',
-        at: '2026-04-12 11:00',
-        note: 'Approved.',
-      },
-      {
-        status: 'approved',
-        by: 'Finance',
-        at: '2026-04-15 09:00',
-        note: 'All docs verified.',
-      },
-      {
-        status: 'paid',
-        by: 'Finance',
-        at: '2026-04-28 14:00',
-        note: 'Paid on 2026-04-28. Bank transfer confirmed.',
-      },
+      { status: 'submitted', by: 'American Tech Corp', at: '2026-04-10 09:00', note: 'Claim submitted via portal' },
+      { status: 'marketing_review', by: 'Umair', at: '2026-04-11 10:00', note: 'Started review' },
+      { status: 'finance_review', by: 'Umair', at: '2026-04-12 11:00', note: 'Approved.' },
+      { status: 'approved', by: 'Finance', at: '2026-04-15 09:00', note: 'All docs verified.' },
+      { status: 'paid', by: 'Finance', at: '2026-04-28 14:00', note: 'Paid on 2026-04-28. Bank transfer confirmed.' },
     ],
   },
 ];
@@ -1289,11 +1092,10 @@ const loadPersistedData = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 };
 const persistedData = loadPersistedData();
+
 
 const StatusBadge = ({ status }) => {
   const cfg = {
@@ -1495,26 +1297,24 @@ const DonutChart = ({ slices, size = 120 }) => {
       />
       {slices.length === 1 ? (
         <circle cx={cx} cy={cy} r={r} fill={slices[0].color} opacity="0.85" />
-      ) : (
-        slices.map((s, i) => {
-          const sweep = (s.value / total) * 360;
-          if (sweep === 0) return null;
-          const start = angle,
-            end = angle + sweep;
-          angle = end;
-          const large = sweep > 180 ? 1 : 0;
-          const s1 = toXY(start, r),
-            e1 = toXY(end, r);
-          return (
-            <path
-              key={i}
-              d={`M ${cx} ${cy} L ${s1.x} ${s1.y} A ${r} ${r} 0 ${large} 1 ${e1.x} ${e1.y} Z`}
-              fill={s.color}
-              opacity="0.85"
-            />
-          );
-        })
-      )}
+      ) : slices.map((s, i) => {
+        const sweep = (s.value / total) * 360;
+        if (sweep === 0) return null;
+        const start = angle,
+          end = angle + sweep;
+        angle = end;
+        const large = sweep > 180 ? 1 : 0;
+        const s1 = toXY(start, r),
+          e1 = toXY(end, r);
+        return (
+          <path
+            key={i}
+            d={`M ${cx} ${cy} L ${s1.x} ${s1.y} A ${r} ${r} 0 ${large} 1 ${e1.x} ${e1.y} Z`}
+            fill={s.color}
+            opacity="0.85"
+          />
+        );
+      })}
       <circle cx={cx} cy={cy} r={r - stroke / 2} fill={C.card} />
     </svg>
   );
@@ -1811,10 +1611,7 @@ const NewRequestModal = ({
 
   const submit = () => {
     if (!validate()) return;
-    const reqId =
-      'REQ-' +
-      Date.now().toString(36).toUpperCase() +
-      Math.random().toString(36).slice(2, 5).toUpperCase();
+    const reqId = 'REQ-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,5).toUpperCase();
     onAdd({
       id: reqId,
       partner: partnerInput.trim(),
@@ -2542,11 +2339,7 @@ const ImportModal = ({ onImport, onClose }) => {
         return typeof r === 'number' && !isNaN(r) ? r : parseNum(s);
       };
       return {
-        id:
-          'p' +
-          Date.now().toString(36) +
-          i.toString(36) +
-          Math.random().toString(36).slice(2, 5),
+        id: 'p' + Date.now().toString(36) + i.toString(36) + Math.random().toString(36).slice(2,5),
         name: String(
           rowS[mapping.name] || rowR[mapping.name] || `Partner ${i + 1}`
         ).trim(),
@@ -2557,7 +2350,7 @@ const ImportModal = ({ onImport, onClose }) => {
         tier: String(rowS[mapping.tier] || 'Silver').trim(),
         accountManager: String(rowS[mapping.accountManager] || '').trim(),
         allocated: getAlloc(),
-        spent: 0, // auto-calculated from approved claims
+        spent: 0,  // auto-calculated from approved claims
         pending: 0,
         status: 'active',
         note: '',
@@ -2847,6 +2640,7 @@ const ImportModal = ({ onImport, onClose }) => {
                 { key: 'tier', label: 'Level (Platinum, Gold...)' },
                 { key: 'accountManager', label: 'Account Manager' },
                 { key: 'allocated', label: 'Budget Allocated *', req: true },
+        
               ].map((f) => (
                 <div key={f.key}>
                   <div
@@ -3198,9 +2992,7 @@ The script must:
     });
 
     if (response.status === 401 || response.status === 403) {
-      throw new Error(
-        'API access not available in this environment. PPT export requires the StackBlitz platform with API injection enabled.'
-      );
+      throw new Error('API access not available in this environment. PPT export requires the StackBlitz platform with API injection enabled.');
     }
 
     const data = await response.json();
@@ -3933,7 +3725,7 @@ const RequestReviewModal = ({
       });
       // When CMM is assigned to any item, apply to ALL items + request level
       if (k === 'assignedTo' && v) {
-        const allAssigned = newItems.map((it) => ({ ...it, assignedTo: v }));
+        const allAssigned = newItems.map(it => ({ ...it, assignedTo: v }));
         return { ...prev, assignedTo: v, items: allAssigned };
       }
       return { ...prev, items: newItems };
@@ -3942,16 +3734,11 @@ const RequestReviewModal = ({
 
   const saveChanges = () => {
     // Validate: approved items must have Campaign ID
-    const missingCampaignId = r.items.filter(
-      (it) => it.itemStatus === 'approved' && !it.campaignId
+    const missingCampaignId = r.items.filter(it =>
+      it.itemStatus === 'approved' && !it.campaignId
     );
     if (missingCampaignId.length > 0) {
-      toast(
-        `Campaign ID required for: ${missingCampaignId
-          .map((it) => it.title || it.id)
-          .join(', ')}`,
-        C.danger
-      );
+      toast(`Campaign ID required for: ${missingCampaignId.map(it => it.title || it.id).join(', ')}`, C.danger);
       return;
     }
     const updatedItems = r.items.map((it) => ({
@@ -3967,37 +3754,16 @@ const RequestReviewModal = ({
         // Auto-advance to 'approved' if all active items are approved
         // Use r.status directly - user explicitly set it via status buttons
         // Only auto-advance from request_submitted->approved if all items are approved
-        const activeItems = (r.items || []).filter(
-          (it) =>
-            !['cancelled_by_partner', 'postponed', 'rejected'].includes(
-              it.itemStatus
-            )
-        );
-        const allApproved =
-          activeItems.length > 0 &&
-          activeItems.every((it) => it.itemStatus === 'approved');
-        const autoStatus =
-          allApproved && r.status === 'request_submitted'
-            ? 'approved'
-            : r.status;
+        const activeItems = (r.items || []).filter(it => !['cancelled_by_partner','postponed','rejected'].includes(it.itemStatus));
+        const allApproved = activeItems.length > 0 && activeItems.every(it => it.itemStatus === 'approved');
+        const autoStatus = allApproved && r.status === 'request_submitted' ? 'approved' : r.status;
         // Never revert to a previous status - always use the most advanced
-        const statusOrder = [
-          'request_submitted',
-          'approved',
-          'sent_for_signature',
-          'signed',
-          'po_raised',
-        ];
+        const statusOrder = ['request_submitted','approved','sent_for_signature','signed','po_raised'];
         const rStatusIdx = statusOrder.indexOf(autoStatus);
         const xStatusIdx = statusOrder.indexOf(x.status);
-        const safeStatus =
-          x.status === 'rejected'
-            ? x.status
-            : autoStatus === 'rejected'
-            ? 'rejected'
-            : rStatusIdx >= xStatusIdx
-            ? autoStatus
-            : x.status;
+        const safeStatus = (x.status === 'rejected') ? x.status
+          : (autoStatus === 'rejected') ? 'rejected'
+          : rStatusIdx >= xStatusIdx ? autoStatus : x.status;
         return {
           ...r,
           status: safeStatus,
@@ -4018,7 +3784,7 @@ const RequestReviewModal = ({
 
   // Update status locally - user must click Save Changes to persist
   const setStatus = (newStatus) => {
-    setR((prev) => ({ ...prev, status: newStatus }));
+    setR(prev => ({ ...prev, status: newStatus }));
     setHasEdits(true);
   };
 
@@ -4212,29 +3978,23 @@ const RequestReviewModal = ({
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
-              onClick={saveChanges}
-              style={{
-                background: hasEdits ? C.success : C.faint,
-                color: hasEdits ? '#000' : C.muted,
-                border: hasEdits ? 'none' : `1px solid ${C.border}`,
-                borderRadius: 10,
-                padding: '8px 16px',
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: 'pointer',
-              }}
-            >
-              Save Changes
-            </button>
+                onClick={saveChanges}
+                style={{
+                  background: hasEdits ? C.success : C.faint,
+                  color: hasEdits ? '#000' : C.muted,
+                  border: hasEdits ? 'none' : `1px solid ${C.border}`,
+                  borderRadius: 10,
+                  padding: '8px 16px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                Save Changes
+              </button>
             <button
               onClick={() => {
-                if (
-                  hasEdits &&
-                  !window.confirm(
-                    'You have unsaved changes. Close without saving?'
-                  )
-                )
-                  return;
+                if (hasEdits && !window.confirm('You have unsaved changes. Close without saving?')) return;
                 onClose();
               }}
               style={{
@@ -4698,6 +4458,7 @@ const RequestReviewModal = ({
                               "{item.cancelReason}"
                             </span>
                           )}
+
                         </div>
                       );
                     if (iStatus === 'postponed')
@@ -4742,11 +4503,7 @@ const RequestReviewModal = ({
                                 ...prev,
                                 items: prev.items.map((it) =>
                                   it.id === item.id
-                                    ? {
-                                        ...it,
-                                        itemStatus: 'approved',
-                                        acknowledged: true,
-                                      }
+                                    ? { ...it, itemStatus: 'approved', acknowledged: true }
                                     : it
                                 ),
                               }));
@@ -4809,42 +4566,24 @@ const RequestReviewModal = ({
                                   ? {
                                       ...it,
                                       itemStatus: 'approved',
-                                      assignedTo:
-                                        it.assignedTo ||
-                                        prev.assignedTo ||
-                                        currentUser,
+                                      assignedTo: it.assignedTo || prev.assignedTo || currentUser,
                                     }
-                                  : {
-                                      ...it,
-                                      assignedTo:
-                                        it.assignedTo ||
-                                        prev.assignedTo ||
-                                        currentUser,
-                                    }
+                                  : { ...it, assignedTo: it.assignedTo || prev.assignedTo || currentUser }
                               ),
                             }));
                           }}
                           style={{
-                            background:
-                              item.itemStatus === 'approved'
-                                ? C.faint
-                                : C.success,
-                            color:
-                              item.itemStatus === 'approved' ? C.muted : '#000',
+                            background: item.itemStatus === 'approved' ? C.faint : C.success,
+                            color: item.itemStatus === 'approved' ? C.muted : '#000',
                             border: 'none',
                             borderRadius: 8,
                             padding: '5px 12px',
                             fontSize: 11,
                             fontWeight: 700,
-                            cursor:
-                              item.itemStatus === 'approved'
-                                ? 'default'
-                                : 'pointer',
+                            cursor: item.itemStatus === 'approved' ? 'default' : 'pointer',
                           }}
                         >
-                          {item.itemStatus === 'approved'
-                            ? '✓ Approved'
-                            : 'Approve'}
+                          {item.itemStatus === 'approved' ? '✓ Approved' : 'Approve'}
                         </button>
                         <button
                           onClick={() => {
@@ -5142,24 +4881,8 @@ const RequestReviewModal = ({
               )}
               {/* Campaign ID - mandatory when approved */}
               {item.itemStatus === 'approved' && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    paddingTop: 8,
-                    borderTop: `1px solid ${C.border}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: !item.campaignId ? C.danger : C.muted,
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 10, color: !item.campaignId ? C.danger : C.muted, fontWeight: 700, whiteSpace: 'nowrap' }}>
                     CAMPAIGN ID *
                   </span>
                   <input
@@ -5169,62 +4892,30 @@ const RequestReviewModal = ({
                       setR((prev) => ({
                         ...prev,
                         items: prev.items.map((it) =>
-                          it.id === item.id
-                            ? { ...it, campaignId: e.target.value }
-                            : it
+                          it.id === item.id ? { ...it, campaignId: e.target.value } : it
                         ),
                       }));
                     }}
                     placeholder="Required for pipeline tracking"
                     style={{
-                      flex: 1,
-                      background: C.card,
-                      border: `1px solid ${
-                        !item.campaignId ? C.danger : C.accent + '40'
-                      }`,
-                      color: C.text,
-                      borderRadius: 6,
-                      padding: '5px 10px',
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                      outline: 'none',
+                      flex: 1, background: C.card,
+                      border: `1px solid ${!item.campaignId ? C.danger : C.accent + '40'}`,
+                      color: C.text, borderRadius: 6, padding: '5px 10px',
+                      fontSize: 12, fontFamily: 'monospace', outline: 'none',
                     }}
                   />
                   {!item.campaignId && (
-                    <span
-                      style={{
-                        fontSize: 9,
-                        color: C.danger,
-                        whiteSpace: 'nowrap',
-                        fontWeight: 700,
-                      }}
-                    >
-                      Required
-                    </span>
+                    <span style={{ fontSize: 9, color: C.danger, whiteSpace: 'nowrap', fontWeight: 700 }}>Required</span>
                   )}
                 </div>
               )}
               {item.itemStatus !== 'approved' && item.allocadiaId && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    color: C.muted,
-                  }}
-                >
+                <div style={{ marginTop: 8, fontSize: 10, fontFamily: 'monospace', color: C.muted }}>
                   Allocadia: {item.allocadiaId}
                 </div>
               )}
               {item.itemStatus !== 'approved' && item.campaignId && (
-                <div
-                  style={{
-                    marginTop: 4,
-                    fontSize: 10,
-                    fontFamily: 'monospace',
-                    color: C.muted,
-                  }}
-                >
+                <div style={{ marginTop: 4, fontSize: 10, fontFamily: 'monospace', color: C.muted }}>
                   Campaign ID: {item.campaignId}
                 </div>
               )}
@@ -5266,7 +4957,7 @@ const RequestReviewModal = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {/* Generate BP v only when activities are approved and status is still request_submitted */}
               {r.items.some((it) => it.itemStatus === 'approved') &&
-                !['rejected', 'cancelled_by_partner'].includes(r.status) &&
+                !['rejected','cancelled_by_partner'].includes(r.status) &&
                 r.status === 'request_submitted' && (
                   <div>
                     <button
@@ -5289,25 +4980,12 @@ const RequestReviewModal = ({
                     >
                       <span>Generate Business Plan</span>
                       <span style={{ fontSize: 11, opacity: 0.8 }}>
-                        {
-                          r.items.filter((i) => i.itemStatus === 'approved')
-                            .length
-                        }{' '}
-                        {r.items.filter((i) => i.itemStatus === 'approved')
-                          .length === 1
-                          ? 'activity'
-                          : 'activities'}
+                        {r.items.filter((i) => i.itemStatus === 'approved').length}{' '}
+                        {r.items.filter((i) => i.itemStatus === 'approved').length === 1 ? 'activity' : 'activities'}
                       </span>
                     </button>
                     {r.bpGeneratedAt && (
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: C.muted,
-                          marginTop: 5,
-                          textAlign: 'center',
-                        }}
-                      >
+                      <div style={{ fontSize: 10, color: C.muted, marginTop: 5, textAlign: 'center' }}>
                         BP previously generated: {r.bpGeneratedAt}
                       </div>
                     )}
@@ -5316,47 +4994,14 @@ const RequestReviewModal = ({
 
               {/* APPROVED but no BP yet → show Generate BP button */}
               {r.status === 'approved' && !r.bpGeneratedAt && (
-                <div
-                  style={{
-                    background: C.warning + '15',
-                    border: `1px solid ${C.warning}40`,
-                    borderRadius: 10,
-                    padding: '14px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}
-                >
+                <div style={{ background: C.warning + '15', border: `1px solid ${C.warning}40`, borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: C.warning,
-                        fontWeight: 700,
-                        marginBottom: 2,
-                      }}
-                    >
-                      Activities approved — Business Plan not yet generated
-                    </div>
-                    <div style={{ fontSize: 11, color: C.muted }}>
-                      Generate and download the BP before sending for signature
-                    </div>
+                    <div style={{ fontSize: 13, color: C.warning, fontWeight: 700, marginBottom: 2 }}>Activities approved — Business Plan not yet generated</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>Generate and download the BP before sending for signature</div>
                   </div>
                   <button
                     onClick={approveAndGenerate}
-                    style={{
-                      background: C.success,
-                      color: '#000',
-                      border: 'none',
-                      borderRadius: 10,
-                      padding: '10px 18px',
-                      fontWeight: 800,
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                    }}
+                    style={{ background: C.success, color: '#000', border: 'none', borderRadius: 10, padding: '10px 18px', fontWeight: 800, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                   >
                     Generate BP →
                   </button>
@@ -5743,16 +5388,7 @@ const RequestReviewModal = ({
                       3. CONFIRM PO RAISED
                     </div>
                     {!r.partnerNotified && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: C.warning,
-                          marginBottom: 8,
-                          padding: '6px 10px',
-                          background: C.warning + '15',
-                          borderRadius: 6,
-                        }}
-                      >
+                      <div style={{ fontSize: 11, color: C.warning, marginBottom: 8, padding: '6px 10px', background: C.warning + '15', borderRadius: 6 }}>
                         Complete step 2 (notify partner) before raising PO
                       </div>
                     )}
@@ -6029,17 +5665,13 @@ const AnalyticsTab = ({
       setOverride(rowKey, field, editVal);
       setEditCell(null);
       // Write allocadiaId/campaignId/poNumber back to requests state
-      if (
-        ['allocadiaId', 'campaignId', 'poNumber'].includes(field) &&
-        onSaveOverride
-      ) {
+      if (['allocadiaId','campaignId','poNumber'].includes(field) && onSaveOverride) {
         onSaveOverride(rowKey, field, editVal);
       }
       // Write pipeline back to App pipelineData (persisted)
       if (field === 'pipelineGenerated' && onSavePipeline) {
-        const row = rows.find((r) => r.rowKey === rowKey);
-        const campaignIdOverride =
-          overrides[`${rowKey}_campaignId`] || row?.campaignId;
+        const row = rows.find(r => r.rowKey === rowKey);
+        const campaignIdOverride = overrides[`${rowKey}_campaignId`] || row?.campaignId;
         const key = campaignIdOverride || rowKey;
         onSavePipeline(key, Number(editVal) || 0);
       }
@@ -6059,7 +5691,7 @@ const AnalyticsTab = ({
     setAnExec('All');
     setAnClaim('All');
     setAnPartner('All');
-    setAnPAM('All');
+      setAnPAM('All');
     setAnSearch('');
   };
   const hasActiveFilter =
@@ -6110,12 +5742,7 @@ const AnalyticsTab = ({
           localCurrency: item.localCurrency || 'EUR',
           reqStatus: (() => {
             // Use request-level status when it has advanced past item approval
-            const advanced = [
-              'sent_for_signature',
-              'signed',
-              'po_raised',
-              'rejected',
-            ];
+            const advanced = ['sent_for_signature','signed','po_raised','rejected'];
             if (advanced.includes(r.status)) return r.status;
             const s = item.itemStatus || r.status || '-';
             if (s === 'cancelled_by_partner') return 'cancelled_by_partner';
@@ -6150,8 +5777,7 @@ const AnalyticsTab = ({
             );
             return c ? c.claimAmount || 0 : 0;
           })(),
-          pipelineGenerated:
-            pipelineData[item.campaignId] || pipelineData[item.id] || 0,
+          pipelineGenerated: pipelineData[item.campaignId] || pipelineData[item.id] || 0,
           tier: p.tier || '-',
           partnerType: p.type || '-',
         });
@@ -6163,34 +5789,10 @@ const AnalyticsTab = ({
   const filtered = useMemo(
     () =>
       rows.filter((row) => {
-        if (
-          anMacro !== 'All' &&
-          (Array.isArray(anMacro)
-            ? anMacro.length > 0 && !anMacro.includes(row.macro)
-            : row.macro !== anMacro)
-        )
-          return false;
-        if (
-          anSubregion !== 'All' &&
-          (Array.isArray(anSubregion)
-            ? anSubregion.length > 0 && !anSubregion.includes(row.subregion)
-            : row.subregion !== anSubregion)
-        )
-          return false;
-        if (
-          anTier !== 'All' &&
-          (Array.isArray(anTier)
-            ? anTier.length > 0 && !anTier.includes(row.tier)
-            : row.tier !== anTier)
-        )
-          return false;
-        if (
-          anType !== 'All' &&
-          (Array.isArray(anType)
-            ? anType.length > 0 && !anType.includes(row.partnerType)
-            : row.partnerType !== anType)
-        )
-          return false;
+        if (anMacro !== 'All' && (Array.isArray(anMacro) ? (anMacro.length > 0 && !anMacro.includes(row.macro)) : row.macro !== anMacro)) return false;
+        if (anSubregion !== 'All' && (Array.isArray(anSubregion) ? (anSubregion.length > 0 && !anSubregion.includes(row.subregion)) : row.subregion !== anSubregion)) return false;
+        if (anTier !== 'All' && (Array.isArray(anTier) ? (anTier.length > 0 && !anTier.includes(row.tier)) : row.tier !== anTier)) return false;
+        if (anType !== 'All' && (Array.isArray(anType) ? (anType.length > 0 && !anType.includes(row.partnerType)) : row.partnerType !== anType)) return false;
         if (anStatus !== 'All') {
           const claimStatusMap = {
             claim_submitted: 'submitted',
@@ -6218,41 +5820,15 @@ const AnalyticsTab = ({
             if (row.reqStatus !== anStatus) return false;
           }
         }
-        if (
-          anFyHalf !== 'All' &&
-          (Array.isArray(anFyHalf)
-            ? anFyHalf.length > 0 && !anFyHalf.includes(row.fyHalf)
-            : row.fyHalf !== anFyHalf)
-        )
-          return false;
-        if (
-          anFyQ !== 'All' &&
-          (Array.isArray(anFyQ)
-            ? anFyQ.length > 0 && !anFyQ.includes(row.fyQuarter)
-            : row.fyQuarter !== anFyQ)
-        )
-          return false;
-        if (
-          anBU !== 'All' &&
-          (Array.isArray(anBU)
-            ? anBU.length > 0 && !anBU.includes(row.productGroup)
-            : row.productGroup !== anBU)
-        )
-          return false;
-        if (
-          anTactic !== 'All' &&
-          (Array.isArray(anTactic)
-            ? anTactic.length > 0 && !anTactic.includes(row.tactic)
-            : row.tactic !== anTactic)
-        )
-          return false;
+        if (anFyHalf !== 'All' && (Array.isArray(anFyHalf) ? (anFyHalf.length > 0 && !anFyHalf.includes(row.fyHalf)) : row.fyHalf !== anFyHalf)) return false;
+        if (anFyQ !== 'All' && (Array.isArray(anFyQ) ? (anFyQ.length > 0 && !anFyQ.includes(row.fyQuarter)) : row.fyQuarter !== anFyQ)) return false;
+        if (anBU !== 'All' && (Array.isArray(anBU) ? (anBU.length > 0 && !anBU.includes(row.productGroup)) : row.productGroup !== anBU)) return false;
+        if (anTactic !== 'All' && (Array.isArray(anTactic) ? (anTactic.length > 0 && !anTactic.includes(row.tactic)) : row.tactic !== anTactic)) return false;
         if (
           anExec !== 'All' &&
           (() => {
             const v = getOverride(row.rowKey, 'execStatus', row.execStatus);
-            return Array.isArray(anExec)
-              ? anExec.length > 0 && !anExec.includes(v)
-              : v !== anExec;
+            return Array.isArray(anExec) ? (anExec.length > 0 && !anExec.includes(v)) : v !== anExec;
           })()
         )
           return false;
@@ -6262,20 +5838,8 @@ const AnalyticsTab = ({
             if (anClaim.length > 0 && !anClaim.includes(cs)) return false;
           } else if (cs !== anClaim) return false;
         }
-        if (
-          anPartner !== 'All' &&
-          (Array.isArray(anPartner)
-            ? anPartner.length > 0 && !anPartner.includes(row.partnerName)
-            : row.partnerName !== anPartner)
-        )
-          return false;
-        if (
-          anPAM !== 'All' &&
-          (Array.isArray(anPAM)
-            ? anPAM.length > 0 && !anPAM.includes(row.accountManager)
-            : row.accountManager !== anPAM)
-        )
-          return false;
+        if (anPartner !== 'All' && (Array.isArray(anPartner) ? (anPartner.length > 0 && !anPartner.includes(row.partnerName)) : row.partnerName !== anPartner)) return false;
+        if (anPAM !== 'All' && (Array.isArray(anPAM) ? (anPAM.length > 0 && !anPAM.includes(row.accountManager)) : row.accountManager !== anPAM)) return false;
         if (anSearch) {
           const q = anSearch.toLowerCase();
           if (
@@ -6589,51 +6153,46 @@ const AnalyticsTab = ({
               📊 Import Pipeline
             </button>
           )}
-          {onSavePipeline &&
-            (() => {
-              // Check if there are any pipeline overrides to save
-              const pipelineOverrides = Object.entries(overrides).filter(
-                ([k]) => k.endsWith('_pipelineGenerated')
-              );
-              return pipelineOverrides.length > 0 ? (
-                <button
-                  onClick={() => {
-                    pipelineOverrides.forEach(([k, val]) => {
-                      const rowKey = k.replace('_pipelineGenerated', '');
-                      const row = rows.find((r) => r.rowKey === rowKey);
-                      // Use campaignId override if entered manually, else item campaignId, else rowKey
-                      const campaignIdOverride =
-                        overrides[`${rowKey}_campaignId`] || row?.campaignId;
-                      const key = campaignIdOverride || rowKey;
-                      onSavePipeline(key, Number(val) || 0);
-                    });
-                    setOverrides((prev) => {
-                      const next = { ...prev };
-                      Object.keys(next)
-                        .filter((k) => k.endsWith('_pipelineGenerated'))
-                        .forEach((k) => delete next[k]);
-                      return next;
-                    });
-                  }}
-                  style={{
-                    background: '#10b981',
-                    color: '#000',
-                    border: 'none',
-                    borderRadius: 10,
-                    padding: '7px 14px',
-                    fontWeight: 800,
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    animation: 'pulse 1.5s infinite',
-                  }}
-                >
-                  💾 Save Pipeline ({pipelineOverrides.length})
-                </button>
-              ) : null;
-            })()}
+          {onSavePipeline && (() => {
+            // Check if there are any pipeline overrides to save
+            const pipelineOverrides = Object.entries(overrides)
+              .filter(([k]) => k.endsWith('_pipelineGenerated'));
+            return pipelineOverrides.length > 0 ? (
+              <button
+                onClick={() => {
+                  pipelineOverrides.forEach(([k, val]) => {
+                    const rowKey = k.replace('_pipelineGenerated', '');
+                    const row = rows.find(r => r.rowKey === rowKey);
+                    // Use campaignId override if entered manually, else item campaignId, else rowKey
+                    const campaignIdOverride = overrides[`${rowKey}_campaignId`] || row?.campaignId;
+                    const key = campaignIdOverride || rowKey;
+                    onSavePipeline(key, Number(val) || 0);
+                  });
+                  setOverrides(prev => {
+                    const next = {...prev};
+                    Object.keys(next).filter(k => k.endsWith('_pipelineGenerated')).forEach(k => delete next[k]);
+                    return next;
+                  });
+                }}
+                style={{
+                  background: '#10b981',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '7px 14px',
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  animation: 'pulse 1.5s infinite',
+                }}
+              >
+                💾 Save Pipeline ({pipelineOverrides.length})
+              </button>
+            ) : null;
+          })()}
           <button
             onClick={() => onExport && onExport(sorted)}
             style={{
@@ -6900,14 +6459,10 @@ const AnalyticsTab = ({
           )}
           {activeFilters.includes('pam') && (
             <MultiSelect
-              value={
-                anPAM === 'All' ? [] : Array.isArray(anPAM) ? anPAM : [anPAM]
-              }
+              value={anPAM === 'All' ? [] : Array.isArray(anPAM) ? anPAM : [anPAM]}
               onChange={(v) => setAnPAM(v.length === 0 ? 'All' : v)}
               placeholder="All PAMs"
-              options={[
-                ...new Set(rows.map((r) => r.accountManager).filter(Boolean)),
-              ].sort()}
+              options={[...new Set(rows.map((r) => r.accountManager).filter(Boolean))].sort()}
             />
           )}
           {hasActiveFilter && (
@@ -7580,10 +7135,7 @@ const MultiSelect = ({
       <button
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setOpen((o) => !o);
-          }
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o); }
           if (e.key === 'Escape') setOpen(false);
         }}
         aria-haspopup="listbox"
@@ -8150,121 +7702,37 @@ const ClaimReviewModal = ({ claim, onClose, onMove, onHold, onNotify }) => {
             {/* Status audit trail */}
             {(claim.statusHistory || []).length > 0 && (
               <div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    color: C.accent,
-                    letterSpacing: '0.1em',
-                    marginBottom: 10,
-                  }}
-                >
+                <div style={{ fontSize: 10, fontWeight: 800, color: C.accent, letterSpacing: '0.1em', marginBottom: 10 }}>
                   STATUS HISTORY
                 </div>
                 <div style={{ position: 'relative' }}>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: 7,
-                      top: 0,
-                      bottom: 0,
-                      width: 1,
-                      background: C.border,
-                    }}
-                  />
+                  <div style={{ position: 'absolute', left: 7, top: 0, bottom: 0, width: 1, background: C.border }} />
                   {(claim.statusHistory || []).map((h, i) => {
-                    const col =
-                      h.status === 'submitted'
-                        ? C.warning
-                        : h.status === 'marketing_review'
-                        ? C.cyan || '#06b6d4'
-                        : h.status === 'finance_review'
-                        ? C.purple
-                        : h.status === 'approved'
-                        ? C.success
-                        : h.status === 'paid'
-                        ? C.teal || '#14b8a6'
-                        : h.status === 'on_hold'
-                        ? C.danger
-                        : C.muted;
-                    const lbl =
-                      h.status === 'submitted'
-                        ? 'Submitted'
-                        : h.status === 'marketing_review'
-                        ? 'Mktg Review'
-                        : h.status === 'finance_review'
-                        ? 'Finance Review'
-                        : h.status === 'approved'
-                        ? 'Approved'
-                        : h.status === 'paid'
-                        ? 'Paid'
-                        : h.status === 'on_hold'
-                        ? 'On Hold'
-                        : h.status;
+                    const col = h.status === 'submitted' ? C.warning
+                      : h.status === 'marketing_review' ? (C.cyan || '#06b6d4')
+                      : h.status === 'finance_review' ? C.purple
+                      : h.status === 'approved' ? C.success
+                      : h.status === 'paid' ? (C.teal || '#14b8a6')
+                      : h.status === 'on_hold' ? C.danger
+                      : C.muted;
+                    const lbl = h.status === 'submitted' ? 'Submitted'
+                      : h.status === 'marketing_review' ? 'Mktg Review'
+                      : h.status === 'finance_review' ? 'Finance Review'
+                      : h.status === 'approved' ? 'Approved'
+                      : h.status === 'paid' ? 'Paid'
+                      : h.status === 'on_hold' ? 'On Hold'
+                      : h.status;
                     return (
-                      <div
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          gap: 10,
-                          marginBottom: 10,
-                          position: 'relative',
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 15,
-                            height: 15,
-                            borderRadius: '50%',
-                            background: col,
-                            border: `2px solid ${col}`,
-                            flexShrink: 0,
-                            marginTop: 1,
-                            zIndex: 1,
-                          }}
-                        />
+                      <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 10, position: 'relative' }}>
+                        <div style={{ width: 15, height: 15, borderRadius: '50%', background: col, border: `2px solid ${col}`, flexShrink: 0, marginTop: 1, zIndex: 1 }} />
                         <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              marginBottom: 2,
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 700,
-                                color: col,
-                              }}
-                            >
-                              {lbl}
-                            </span>
-                            <span style={{ fontSize: 10, color: C.muted }}>
-                              · {h.by}
-                            </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: col }}>{lbl}</span>
+                            <span style={{ fontSize: 10, color: C.muted }}>· {h.by}</span>
                           </div>
-                          <div
-                            style={{
-                              fontSize: 10,
-                              color: C.muted,
-                              fontFamily: 'monospace',
-                            }}
-                          >
-                            {h.at}
-                          </div>
+                          <div style={{ fontSize: 10, color: C.muted, fontFamily: 'monospace' }}>{h.at}</div>
                           {h.note && h.note !== lbl && (
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: C.muted,
-                                marginTop: 2,
-                                fontStyle: 'italic',
-                              }}
-                            >
-                              "{h.note}"
-                            </div>
+                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontStyle: 'italic' }}>"{h.note}"</div>
                           )}
                         </div>
                       </div>
@@ -8634,16 +8102,7 @@ const ClaimReviewModal = ({ claim, onClose, onMove, onHold, onNotify }) => {
   );
 };
 
-const ClaimsTab = ({
-  claims,
-  setClaims,
-  partners,
-  requests = [],
-  addHistory,
-  toast,
-  toUSD,
-  fmtA,
-}) => {
+const ClaimsTab = ({ claims, setClaims, partners, requests = [], addHistory, toast, toUSD, fmtA }) => {
   const STATUS_COLOR = {
     submitted: C.warning,
     marketing_review: C.cyan || '#06b6d4',
@@ -8670,62 +8129,29 @@ const ClaimsTab = ({
   const [sortCol, setSortCol] = useState('submitted');
 
   const moveClaim = (id, newStatus, note = '') => {
-    const now = new Date().toLocaleString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    setClaims((prev) =>
-      prev.map((c) => {
+    const now = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    setClaims(prev =>
+      prev.map(c => {
         if (c.id !== id) return c;
-        const histEntry = {
-          status: newStatus,
-          by: currentUser,
-          at: now,
-          note: note || STATUS_LABEL[newStatus] || newStatus,
-        };
-        addHistory(
-          `Claim ${id} → ${STATUS_LABEL[newStatus] || newStatus}`,
-          id,
-          'approve'
-        );
-        return {
-          ...c,
-          status: newStatus,
-          statusHistory: [...(c.statusHistory || []), histEntry],
-        };
+        const histEntry = { status: newStatus, by: currentUser, at: now, note: note || STATUS_LABEL[newStatus] || newStatus };
+        addHistory(`Claim ${id} → ${STATUS_LABEL[newStatus] || newStatus}`, id, 'approve');
+        return { ...c, status: newStatus, statusHistory: [...(c.statusHistory || []), histEntry] };
       })
     );
     toast(`Claim updated: ${STATUS_LABEL[newStatus]}`);
   };
 
   const holdClaim = (id, note) => {
-    const now = new Date().toLocaleString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    setClaims((prev) => {
-      const next = prev.map((c) => {
+    const now = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    setClaims(prev => {
+      const next = prev.map(c => {
         if (c.id !== id) return c;
         const histEntry = { status: 'on_hold', by: currentUser, at: now, note };
-        return {
-          ...c,
-          status: 'on_hold',
-          reviewNotesMarketing: note,
-          statusHistory: [...(c.statusHistory || []), histEntry],
-        };
+        return { ...c, status: 'on_hold', reviewNotesMarketing: note, statusHistory: [...(c.statusHistory || []), histEntry] };
       });
       // BUG-001 FIX: persist hold status to Supabase immediately
-      const updated = next.find((c) => c.id === id);
-      if (updated)
-        dbSaveClaim(updated).catch((e) =>
-          console.warn('[MDF] holdClaim save error:', e.message)
-        );
+      const updated = next.find(c => c.id === id);
+      if (updated) dbSaveClaim(updated).catch(e => console.warn('[MDF] holdClaim save error:', e.message));
       return next;
     });
     addHistory(`Claim ${id} put on hold`, id, 'reject');
@@ -8733,65 +8159,44 @@ const ClaimsTab = ({
   };
 
   const notifyApproved = (c) => {
-    const partnerRecord = partners.find((p) => p.name === c.partner) || {};
+    const partnerRecord = partners.find(p => p.name === c.partner) || {};
     const toEmail = partnerRecord.contactEmail || '';
     const toName = partnerRecord.contactName || c.partner;
     const subject = encodeURIComponent(`MDF Claim Approved - ${c.id} | OT`);
     const body = encodeURIComponent(
-      `Dear ${toName},\n\nWe are pleased to confirm that your MDF claim has been approved.\n\nClaim ID: ${
-        c.id
-      }\nActivity: ${c.activity}\nApproved Amount: ${c.currency} ${Number(
-        c.claimAmount || 0
-      ).toLocaleString()}\n\nPlease now send your invoice to the OT Finance team for payment processing.\n\nBest regards,\nChannel Marketing Team | OT`
+      `Dear ${toName},\n\nWe are pleased to confirm that your MDF claim has been approved.\n\nClaim ID: ${c.id}\nActivity: ${c.activity}\nApproved Amount: ${c.currency} ${Number(c.claimAmount || 0).toLocaleString()}\n\nPlease now send your invoice to the OT Finance team for payment processing.\n\nBest regards,\nChannel Marketing Team | OT`
     );
     window.open(`mailto:${toEmail}?subject=${subject}&body=${body}`, '_blank');
     toast('Email opened - notify partner to send invoice.');
   };
 
   const getRegion = (partnerName) => {
-    const p = partners.find((x) => x.name === partnerName);
+    const p = partners.find(x => x.name === partnerName);
     return p ? p.region || '-' : '-';
   };
 
   const getSubregion = (partnerName) => {
-    const p = partners.find((x) => x.name === partnerName);
+    const p = partners.find(x => x.name === partnerName);
     return p ? p.subregion || '-' : '-';
   };
 
   const toUSDsafe = (amount, currency) => {
     if (toUSD) return toUSD(amount, currency);
-    const fallback = {
-      EUR: 1.09,
-      GBP: 1.27,
-      CHF: 1.12,
-      SEK: 0.092,
-      AED: 0.272,
-      SGD: 0.74,
-      AUD: 0.65,
-    };
+    const fallback = { EUR: 1.09, GBP: 1.27, CHF: 1.12, SEK: 0.092, AED: 0.272, SGD: 0.74, AUD: 0.65 };
     if (!currency || currency === 'USD') return Number(amount || 0);
     return Math.round(Number(amount || 0) * (fallback[currency] || 1));
   };
 
-  const partnerOptions = [...new Set(claims.map((c) => c.partner))].sort();
+  const partnerOptions = [...new Set(claims.map(c => c.partner))].sort();
 
   const filtered = claims
-    .filter((c) => {
-      if (filterPartner.length > 0 && !filterPartner.includes(c.partner))
-        return false;
-      if (filterStatus.length > 0 && !filterStatus.includes(c.status))
-        return false;
-      if (filterQuarter.length > 0 && !filterQuarter.includes(c.fyQuarter))
-        return false;
+    .filter(c => {
+      if (filterPartner.length > 0 && !filterPartner.includes(c.partner)) return false;
+      if (filterStatus.length > 0 && !filterStatus.includes(c.status)) return false;
+      if (filterQuarter.length > 0 && !filterQuarter.includes(c.fyQuarter)) return false;
       if (searchClaim) {
         const q = searchClaim.toLowerCase();
-        if (
-          ![c.id, c.partner, c.activity, c.reqId]
-            .join(' ')
-            .toLowerCase()
-            .includes(q)
-        )
-          return false;
+        if (![c.id, c.partner, c.activity, c.reqId].join(' ').toLowerCase().includes(q)) return false;
       }
       return true;
     })
@@ -8799,8 +8204,7 @@ const ClaimsTab = ({
       let av = a[sortCol] ?? '';
       let bv = b[sortCol] ?? '';
       if (sortCol === 'claimAmount' || sortCol === 'totalValue') {
-        av = Number(av) || 0;
-        bv = Number(bv) || 0;
+        av = Number(av) || 0; bv = Number(bv) || 0;
         return sortDir === 'desc' ? bv - av : av - bv;
       }
       return sortDir === 'desc'
@@ -8808,49 +8212,38 @@ const ClaimsTab = ({
         : String(av).localeCompare(String(bv));
     });
 
-  const hasActiveFilter =
-    filterPartner.length > 0 ||
-    filterStatus.length > 0 ||
-    filterQuarter.length > 0 ||
-    searchClaim.length > 0;
+  const hasActiveFilter = filterPartner.length > 0 || filterStatus.length > 0 || filterQuarter.length > 0 || searchClaim.length > 0;
   const kpiSource = hasActiveFilter ? filtered : claims;
   const kpiData = [
     {
       label: 'New / Submitted',
       color: C.warning,
       sub: 'awaiting review',
-      claims: kpiSource.filter((c) => c.status === 'submitted'),
+      claims: kpiSource.filter(c => c.status === 'submitted'),
     },
     {
       label: 'In Review',
       color: C.cyan || '#06b6d4',
       sub: 'marketing + finance',
-      claims: kpiSource.filter((c) =>
-        ['marketing_review', 'finance_review'].includes(c.status)
-      ),
+      claims: kpiSource.filter(c => ['marketing_review', 'finance_review'].includes(c.status)),
     },
     {
       label: 'Approved',
       color: C.success,
       sub: 'partner to invoice',
-      claims: kpiSource.filter((c) => c.status === 'approved'),
+      claims: kpiSource.filter(c => c.status === 'approved'),
     },
     {
       label: 'On Hold',
       color: C.danger,
       sub: 'more info needed',
-      claims: kpiSource.filter((c) => c.status === 'on_hold'),
+      claims: kpiSource.filter(c => c.status === 'on_hold'),
     },
   ];
 
   const TH = ({ col, label, right, width }) => (
     <th
-      onClick={() => {
-        setSortCol(col);
-        setSortDir((d) =>
-          col === sortCol ? (d === 'asc' ? 'desc' : 'asc') : 'desc'
-        );
-      }}
+      onClick={() => { setSortCol(col); setSortDir(d => col === sortCol ? (d === 'asc' ? 'desc' : 'asc') : 'desc'); }}
       style={{
         padding: '9px 12px',
         textAlign: right ? 'right' : 'left',
@@ -8870,136 +8263,42 @@ const ClaimsTab = ({
         minWidth: width || 80,
       }}
     >
-      {label}
-      {sortCol === col ? (sortDir === 'asc' ? ' ^' : ' v') : ''}
+      {label}{sortCol === col ? (sortDir === 'asc' ? ' ^' : ' v') : ''}
     </th>
   );
 
-  const totalNetUSD = filtered.reduce(
-    (s, c) => s + toUSDsafe(c.claimAmount || 0, c.currency),
-    0
-  );
-  const totalTotalUSD = filtered.reduce(
-    (s, c) => s + toUSDsafe(c.totalValue || c.claimAmount || 0, c.currency),
-    0
-  );
+  const totalNetUSD = filtered.reduce((s, c) => s + toUSDsafe(c.claimAmount || 0, c.currency), 0);
+  const totalTotalUSD = filtered.reduce((s, c) => s + toUSDsafe(c.totalValue || c.claimAmount || 0, c.currency), 0);
 
   return (
     <>
-      <div
-        style={{
-          animation: 'slideIn 0.3s ease',
-          padding: 28,
-          overflowY: 'auto',
-          height: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
+      <div style={{ animation: 'slideIn 0.3s ease', padding: 28, overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
+
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: 20,
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
           <div>
-            <div
-              style={{
-                fontFamily: "'Syne',sans-serif",
-                fontSize: 26,
-                fontWeight: 800,
-                marginBottom: 4,
-              }}
-            >
+            <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, marginBottom: 4 }}>
               MDF Claims
             </div>
             <div style={{ color: C.muted, fontSize: 13 }}>
               {claims.length} total &nbsp;.&nbsp;
-              {claims.filter((c) => c.status === 'submitted').length} new
-              &nbsp;.&nbsp;
-              {
-                claims.filter((c) =>
-                  ['marketing_review', 'finance_review'].includes(c.status)
-                ).length
-              }{' '}
-              in review &nbsp;.&nbsp;
-              {claims.filter((c) => c.status === 'on_hold').length} on hold
+              {claims.filter(c => c.status === 'submitted').length} new &nbsp;.&nbsp;
+              {claims.filter(c => ['marketing_review', 'finance_review'].includes(c.status)).length} in review &nbsp;.&nbsp;
+              {claims.filter(c => c.status === 'on_hold').length} on hold
             </div>
           </div>
         </div>
 
         {/* KPI cards */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4,1fr)',
-            gap: 12,
-            marginBottom: 20,
-          }}
-        >
-          {kpiData.map((k) => {
-            const usdTotal = k.claims.reduce(
-              (s, c) => s + toUSDsafe(c.claimAmount || 0, c.currency),
-              0
-            );
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+          {kpiData.map(k => {
+            const usdTotal = k.claims.reduce((s, c) => s + toUSDsafe(c.claimAmount || 0, c.currency), 0);
             return (
-              <div
-                key={k.label}
-                style={{
-                  background: C.surface,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 12,
-                  padding: '14px 16px',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    width: 40,
-                    height: 40,
-                    background: `radial-gradient(circle at top right,${k.color}18,transparent)`,
-                    borderRadius: '0 12px 0 40px',
-                  }}
-                />
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: C.muted,
-                    fontWeight: 700,
-                    letterSpacing: '0.08em',
-                    marginBottom: 6,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {k.label}
-                </div>
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: k.color,
-                    fontFamily: 'monospace',
-                    marginBottom: 2,
-                  }}
-                >
-                  {k.claims.length}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: k.color,
-                    opacity: 0.85,
-                    fontFamily: 'monospace',
-                    fontWeight: 600,
-                    marginBottom: 2,
-                  }}
-                >
+              <div key={k.label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: 0, right: 0, width: 40, height: 40, background: `radial-gradient(circle at top right,${k.color}18,transparent)`, borderRadius: '0 12px 0 40px' }} />
+                <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>{k.label}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: k.color, fontFamily: 'monospace', marginBottom: 2 }}>{k.claims.length}</div>
+                <div style={{ fontSize: 11, color: k.color, opacity: 0.85, fontFamily: 'monospace', fontWeight: 600, marginBottom: 2 }}>
                   USD {usdTotal.toLocaleString('en-US')}
                 </div>
                 <div style={{ fontSize: 10, color: C.muted }}>{k.sub}</div>
@@ -9009,41 +8308,14 @@ const ClaimsTab = ({
         </div>
 
         {/* Filter bar */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            padding: '10px 14px',
-            background: C.surface,
-            border: `1px solid ${C.border}`,
-            borderRadius: 12,
-            marginBottom: 14,
-          }}
-        >
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '10px 14px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 14 }}>
           <input
             value={searchClaim}
-            onChange={(e) => setSearchClaim(e.target.value)}
+            onChange={e => setSearchClaim(e.target.value)}
             placeholder="Search ID, partner, activity..."
-            style={{
-              background: C.faint,
-              border: `1px solid ${C.border}`,
-              color: C.text,
-              borderRadius: 8,
-              padding: '6px 12px',
-              fontSize: 12,
-              outline: 'none',
-              minWidth: 200,
-              fontFamily: 'inherit',
-            }}
+            style={{ background: C.faint, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, padding: '6px 12px', fontSize: 12, outline: 'none', minWidth: 200, fontFamily: 'inherit' }}
           />
-          <MultiSelect
-            value={filterPartner}
-            onChange={setFilterPartner}
-            placeholder="All Partners"
-            options={partnerOptions}
-          />
+          <MultiSelect value={filterPartner} onChange={setFilterPartner} placeholder="All Partners" options={partnerOptions} />
           <MultiSelect
             value={filterStatus}
             onChange={setFilterStatus}
@@ -9057,97 +8329,34 @@ const ClaimsTab = ({
               { value: 'on_hold', label: 'On Hold' },
             ]}
           />
-          <MultiSelect
-            value={filterQuarter}
-            onChange={setFilterQuarter}
-            placeholder="All Quarters"
-            options={['Q1', 'Q2', 'Q3', 'Q4']}
-          />
+          <MultiSelect value={filterQuarter} onChange={setFilterQuarter} placeholder="All Quarters" options={['Q1', 'Q2', 'Q3', 'Q4']} />
           <button
-            onClick={() => {
-              setSortCol('submitted');
-              setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
-            }}
-            style={{
-              background: C.faint,
-              border: `1px solid ${C.border}`,
-              color: C.muted,
-              borderRadius: 8,
-              padding: '6px 12px',
-              fontSize: 12,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
+            onClick={() => { setSortCol('submitted'); setSortDir(d => d === 'desc' ? 'asc' : 'desc'); }}
+            style={{ background: C.faint, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             Date {sortDir === 'desc' ? '↓ Newest' : '↑ Oldest'}
           </button>
-          {(filterPartner.length > 0 ||
-            filterStatus.length > 0 ||
-            filterQuarter.length > 0 ||
-            searchClaim) && (
+          {(filterPartner.length > 0 || filterStatus.length > 0 || filterQuarter.length > 0 || searchClaim) && (
             <button
-              onClick={() => {
-                setFilterPartner([]);
-                setFilterStatus([]);
-                setFilterQuarter([]);
-                setSearchClaim('');
-              }}
-              style={{
-                background: 'transparent',
-                border: `1px solid ${C.border}`,
-                color: C.muted,
-                borderRadius: 8,
-                padding: '6px 12px',
-                fontSize: 12,
-                cursor: 'pointer',
-              }}
+              onClick={() => { setFilterPartner([]); setFilterStatus([]); setFilterQuarter([]); setSearchClaim(''); }}
+              style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.muted, borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}
             >
               Clear
             </button>
           )}
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: C.muted }}>
-            {filtered.length} of {claims.length} claims
-          </span>
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: C.muted }}>{filtered.length} of {claims.length} claims</span>
         </div>
 
         {/* Table */}
         {claims.length === 0 ? (
-          <div
-            style={{
-              background: C.surface,
-              border: `1px solid ${C.border}`,
-              borderRadius: 14,
-              padding: 60,
-              textAlign: 'center',
-              color: C.muted,
-            }}
-          >
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-              No Claims Yet
-            </div>
-            <div style={{ fontSize: 13 }}>
-              Claims appear here when partners submit approved activities for
-              reimbursement.
-            </div>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 60, textAlign: 'center', color: C.muted }}>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No Claims Yet</div>
+            <div style={{ fontSize: 13 }}>Claims appear here when partners submit approved activities for reimbursement.</div>
           </div>
         ) : (
-          <div
-            style={{
-              background: C.surface,
-              border: `1px solid ${C.border}`,
-              borderRadius: 14,
-              overflow: 'hidden',
-            }}
-          >
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
-              <table
-                style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  fontSize: 12,
-                  minWidth: 1400,
-                }}
-              >
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 1400 }}>
                 <thead>
                   <tr style={{ background: C.faint }}>
                     <TH col="id" label="ID" width={90} />
@@ -9157,642 +8366,174 @@ const ClaimsTab = ({
                     <TH col="activity" label="Activity" width={180} />
                     <TH col="fyQuarter" label="Quarter" width={75} />
                     <TH col="submitted" label="Created" width={95} />
-                    <TH
-                      col="claimAmount"
-                      label="Net Claim (LCY)"
-                      right
-                      width={120}
-                    />
+                    <TH col="claimAmount" label="Net Claim (LCY)" right width={120} />
                     <TH col="currency" label="CCY" width={55} />
-                    <TH
-                      col="claimUSD"
-                      label="Net Claim (USD)"
-                      right
-                      width={120}
-                    />
+                    <TH col="claimUSD" label="Net Claim (USD)" right width={120} />
                     <TH col="vatPct" label="VAT %" right width={60} />
-                    <TH
-                      col="totalValue"
-                      label="Total (LCY)"
-                      right
-                      width={110}
-                    />
+                    <TH col="totalValue" label="Total (LCY)" right width={110} />
                     <TH col="totalUSD" label="Total (USD)" right width={110} />
                     <TH col="status" label="Status" width={110} />
                     <TH col="docs" label="Docs" width={55} />
-                    <th
-                      style={{
-                        padding: '9px 12px',
-                        borderBottom: `2px solid ${C.border}`,
-                        background: 'transparent',
-                        width: 70,
-                      }}
-                    />
+                    <th style={{ padding: '9px 12px', borderBottom: `2px solid ${C.border}`, background: 'transparent', width: 70 }} />
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length > 0 &&
-                    (() => {
-                      // Split into 3 sections
-                      const claimsNeedsAttention = filtered.filter(
-                        (c) => c.status === 'submitted'
-                      );
-                      const claimsInProgress = filtered.filter((c) =>
-                        ['marketing_review', 'finance_review'].includes(
-                          c.status
-                        )
-                      );
-                      const claimsCompleted = filtered.filter((c) =>
-                        ['approved', 'paid', 'on_hold'].includes(c.status)
-                      );
+                  {filtered.length > 0 && (() => {
+                    // Split into 3 sections
+                    const claimsNeedsAttention = filtered.filter(c => c.status === 'submitted');
+                    const claimsInProgress = filtered.filter(c => ['marketing_review', 'finance_review'].includes(c.status));
+                    const claimsCompleted = filtered.filter(c => ['approved', 'paid', 'on_hold'].includes(c.status));
 
-                      const renderClaimRow = (c, i) => {
-                        const sCol = STATUS_COLOR[c.status] || C.muted;
-                        const sLbl = STATUS_LABEL[c.status] || c.status;
-                        const region = getRegion(c.partner);
-                        const netUSD = toUSDsafe(
-                          c.claimAmount || 0,
-                          c.currency
-                        );
-                        const totalUSD = toUSDsafe(
-                          c.totalValue || c.claimAmount || 0,
-                          c.currency
-                        );
-                        const totalDocs =
-                          [
-                            c.files?.partnerInvoice,
-                            c.files?.thirdParty,
-                            c.files?.inHouse,
-                            c.files?.merchandise,
-                          ].filter(Boolean).length +
-                          (c.files?.additional?.length || 0);
-                        const isNew = c.status === 'submitted';
-                        const isInReview = [
-                          'marketing_review',
-                          'finance_review',
-                        ].includes(c.status);
-                        const isOnHold = c.status === 'on_hold';
-                        const rowBg = isNew
-                          ? `${C.warning}08`
-                          : isInReview
-                          ? `${C.cyan || '#06b6d4'}08`
-                          : isOnHold
-                          ? `${C.danger}08`
-                          : i % 2 === 0
-                          ? C.faint
-                          : C.surface;
-                        const rowBorderLeft = isNew
-                          ? `3px solid ${C.warning}`
-                          : isInReview
-                          ? `3px solid ${C.cyan || '#06b6d4'}`
-                          : isOnHold
-                          ? `3px solid ${C.danger}`
-                          : '3px solid transparent';
-                        const rowHoverBg = isNew
-                          ? `${C.warning}18`
-                          : isInReview
-                          ? `${C.cyan || '#06b6d4'}18`
-                          : isOnHold
-                          ? `${C.danger}18`
-                          : C.accentGlow;
-                        return (
-                          <tr
-                            key={c.id}
-                            onClick={() => setReviewClaim(c)}
-                            style={{
-                              borderBottom: `1px solid ${C.border}20`,
-                              background: rowBg,
-                              borderLeft: rowBorderLeft,
-                              cursor: 'pointer',
-                              transition: 'background 0.1s',
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = rowHoverBg)
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = rowBg)
-                            }
-                          >
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                fontFamily: 'monospace',
-                                fontSize: 11,
-                                color: C.accent,
-                                fontWeight: 700,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {c.id}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                color: C.muted,
-                                fontSize: 11,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {region}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                fontWeight: 600,
-                                whiteSpace: 'nowrap',
-                                maxWidth: 150,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
-                              {c.partner}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {(() => {
-                                const req = requests.find(
-                                  (r) => r.id === c.reqId
-                                );
-                                const cmm = req?.assignedTo || '-';
-                                const col =
-                                  cmm === 'Decio A.'
-                                    ? C.accent
-                                    : cmm === 'Kaila'
-                                    ? C.success
-                                    : cmm === 'Umair'
-                                    ? C.purple
-                                    : C.muted;
-                                return cmm !== '-' ? (
-                                  <span
-                                    style={{
-                                      background: col + '18',
-                                      color: col,
-                                      border: `1px solid ${col}30`,
-                                      borderRadius: 20,
-                                      padding: '2px 9px',
-                                      fontSize: 10,
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    {cmm}
-                                  </span>
-                                ) : (
-                                  <span
-                                    style={{ color: C.muted, fontSize: 11 }}
-                                  >
-                                    -
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                maxWidth: 200,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                              title={c.activity}
-                            >
-                              {c.activity}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                color: C.muted,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {c.fyHalf ? `${c.fyHalf} ` : ''}
-                              {c.fyQuarter}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                color: C.muted,
-                                whiteSpace: 'nowrap',
-                                fontFamily: 'monospace',
-                                fontSize: 11,
-                              }}
-                            >
-                              {c.submitted}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                textAlign: 'right',
-                                fontFamily: 'monospace',
-                                fontWeight: 700,
-                                color: C.accent,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {Number(c.claimAmount || 0).toLocaleString(
-                                'en-US'
-                              )}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                color: C.muted,
-                                fontSize: 11,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {c.currency}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                textAlign: 'right',
-                                fontFamily: 'monospace',
-                                fontWeight: 700,
-                                color: '#f59e0b',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              USD {netUSD.toLocaleString('en-US')}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                textAlign: 'right',
-                                color: C.muted,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {c.vatPct || 0}%
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                textAlign: 'right',
-                                fontFamily: 'monospace',
-                                fontWeight: 600,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {Number(
-                                c.totalValue || c.claimAmount || 0
-                              ).toLocaleString('en-US')}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                textAlign: 'right',
-                                fontFamily: 'monospace',
-                                fontWeight: 700,
-                                color: C.success,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              USD {totalUSD.toLocaleString('en-US')}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  background: sCol + '18',
-                                  color: sCol,
-                                  border: `1px solid ${sCol}30`,
-                                  borderRadius: 20,
-                                  padding: '3px 10px',
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                }}
-                              >
-                                {sLbl}
-                              </span>
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                textAlign: 'center',
-                                color: totalDocs > 0 ? C.success : C.muted,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {totalDocs > 0 ? totalDocs : '-'}
-                            </td>
-                            <td
-                              style={{
-                                padding: '9px 12px',
-                                textAlign: 'center',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  color: C.accent,
-                                  fontWeight: 600,
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                Review &rarr;
-                              </span>
+                    const renderClaimRow = (c, i) => {
+                      const sCol = STATUS_COLOR[c.status] || C.muted;
+                      const sLbl = STATUS_LABEL[c.status] || c.status;
+                      const region = getRegion(c.partner);
+                      const netUSD = toUSDsafe(c.claimAmount || 0, c.currency);
+                      const totalUSD = toUSDsafe(c.totalValue || c.claimAmount || 0, c.currency);
+                      const totalDocs = [c.files?.partnerInvoice, c.files?.thirdParty, c.files?.inHouse, c.files?.merchandise].filter(Boolean).length + (c.files?.additional?.length || 0);
+                      const isNew = c.status === 'submitted';
+                      const isInReview = ['marketing_review','finance_review'].includes(c.status);
+                      const isOnHold = c.status === 'on_hold';
+                      const rowBg = isNew ? `${C.warning}08` : isInReview ? `${C.cyan||'#06b6d4'}08` : isOnHold ? `${C.danger}08` : i % 2 === 0 ? C.faint : C.surface;
+                      const rowBorderLeft = isNew ? `3px solid ${C.warning}` : isInReview ? `3px solid ${C.cyan||'#06b6d4'}` : isOnHold ? `3px solid ${C.danger}` : '3px solid transparent';
+                      const rowHoverBg = isNew ? `${C.warning}18` : isInReview ? `${C.cyan||'#06b6d4'}18` : isOnHold ? `${C.danger}18` : C.accentGlow;
+                      return (
+                        <tr
+                          key={c.id}
+                          onClick={() => setReviewClaim(c)}
+                          style={{ borderBottom: `1px solid ${C.border}20`, background: rowBg, borderLeft: rowBorderLeft, cursor: 'pointer', transition: 'background 0.1s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = rowHoverBg}
+                          onMouseLeave={e => e.currentTarget.style.background = rowBg}
+                        >
+                          <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontSize: 11, color: C.accent, fontWeight: 700, whiteSpace: 'nowrap' }}>{c.id}</td>
+                          <td style={{ padding: '9px 12px', color: C.muted, fontSize: 11, whiteSpace: 'nowrap' }}>{region}</td>
+                          <td style={{ padding: '9px 12px', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.partner}</td>
+                          <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+                            {(() => {
+                              const req = requests.find(r => r.id === c.reqId);
+                              const cmm = req?.assignedTo || '-';
+                              const col = cmm === 'Decio A.' ? C.accent : cmm === 'Kaila' ? C.success : cmm === 'Umair' ? C.purple : C.muted;
+                              return cmm !== '-'
+                                ? <span style={{ background: col+'18', color: col, border: `1px solid ${col}30`, borderRadius: 20, padding: '2px 9px', fontSize: 10, fontWeight: 700 }}>{cmm}</span>
+                                : <span style={{ color: C.muted, fontSize: 11 }}>-</span>;
+                            })()}
+                          </td>
+                          <td style={{ padding: '9px 12px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.activity}>{c.activity}</td>
+                          <td style={{ padding: '9px 12px', color: C.muted, whiteSpace: 'nowrap' }}>{c.fyHalf ? `${c.fyHalf} ` : ''}{c.fyQuarter}</td>
+                          <td style={{ padding: '9px 12px', color: C.muted, whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: 11 }}>{c.submitted}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: C.accent, whiteSpace: 'nowrap' }}>
+                            {Number(c.claimAmount || 0).toLocaleString('en-US')}
+                          </td>
+                          <td style={{ padding: '9px 12px', color: C.muted, fontSize: 11, whiteSpace: 'nowrap' }}>{c.currency}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b', whiteSpace: 'nowrap' }}>
+                            USD {netUSD.toLocaleString('en-US')}
+                          </td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', color: C.muted, whiteSpace: 'nowrap' }}>{c.vatPct || 0}%</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            {Number(c.totalValue || c.claimAmount || 0).toLocaleString('en-US')}
+                          </td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: C.success, whiteSpace: 'nowrap' }}>
+                            USD {totalUSD.toLocaleString('en-US')}
+                          </td>
+                          <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+                            <span style={{ background: sCol + '18', color: sCol, border: `1px solid ${sCol}30`, borderRadius: 20, padding: '3px 10px', fontSize: 10, fontWeight: 700 }}>
+                              {sLbl}
+                            </span>
+                          </td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: totalDocs > 0 ? C.success : C.muted, fontWeight: 700 }}>
+                            {totalDocs > 0 ? totalDocs : '-'}
+                          </td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center' }}>
+                            <span style={{ fontSize: 11, color: C.accent, fontWeight: 600, whiteSpace: 'nowrap' }}>Review &rarr;</span>
+                          </td>
+                        </tr>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {/* === NEEDS ATTENTION === */}
+                        {claimsNeedsAttention.length > 0 && (
+                          <tr style={{ background: C.warning + '10' }}>
+                            <td colSpan={16} style={{ padding: '8px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.warning, flexShrink: 0 }} />
+                                <span style={{ fontSize: 11, fontWeight: 800, color: C.warning, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                  Needs Attention — {claimsNeedsAttention.length} new claim{claimsNeedsAttention.length !== 1 ? 's' : ''}
+                                </span>
+                                <span style={{ fontSize: 10, color: C.muted }}>awaiting review</span>
+                              </div>
                             </td>
                           </tr>
-                        );
-                      };
+                        )}
+                        {claimsNeedsAttention.map((c, i) => renderClaimRow(c, i))}
 
-                      return (
-                        <>
-                          {/* === NEEDS ATTENTION === */}
-                          {claimsNeedsAttention.length > 0 && (
-                            <tr style={{ background: C.warning + '10' }}>
-                              <td colSpan={16} style={{ padding: '8px 14px' }}>
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      width: 8,
-                                      height: 8,
-                                      borderRadius: '50%',
-                                      background: C.warning,
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 800,
-                                      color: C.warning,
-                                      letterSpacing: '0.08em',
-                                      textTransform: 'uppercase',
-                                    }}
-                                  >
-                                    Needs Attention —{' '}
-                                    {claimsNeedsAttention.length} new claim
-                                    {claimsNeedsAttention.length !== 1
-                                      ? 's'
-                                      : ''}
-                                  </span>
-                                  <span
-                                    style={{ fontSize: 10, color: C.muted }}
-                                  >
-                                    awaiting review
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          {claimsNeedsAttention.map((c, i) =>
-                            renderClaimRow(c, i)
-                          )}
+                        {/* === IN PROGRESS === */}
+                        {claimsInProgress.length > 0 && (
+                          <tr style={{ background: `${C.cyan||'#06b6d4'}10`, borderTop: claimsNeedsAttention.length > 0 ? `2px solid ${C.border}` : 'none' }}>
+                            <td colSpan={16} style={{ padding: '8px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.cyan || '#06b6d4', flexShrink: 0 }} />
+                                <span style={{ fontSize: 11, fontWeight: 800, color: C.cyan || '#06b6d4', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                  In Progress — {claimsInProgress.length} claim{claimsInProgress.length !== 1 ? 's' : ''}
+                                </span>
+                                <span style={{ fontSize: 10, color: C.muted }}>
+                                  {claimsInProgress.filter(c => c.status === 'marketing_review').length > 0 && `${claimsInProgress.filter(c => c.status === 'marketing_review').length} mktg review`}
+                                  {claimsInProgress.filter(c => c.status === 'marketing_review').length > 0 && claimsInProgress.filter(c => c.status === 'finance_review').length > 0 && ' · '}
+                                  {claimsInProgress.filter(c => c.status === 'finance_review').length > 0 && `${claimsInProgress.filter(c => c.status === 'finance_review').length} finance review`}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {claimsInProgress.map((c, i) => renderClaimRow(c, i + 100))}
 
-                          {/* === IN PROGRESS === */}
-                          {claimsInProgress.length > 0 && (
-                            <tr
-                              style={{
-                                background: `${C.cyan || '#06b6d4'}10`,
-                                borderTop:
-                                  claimsNeedsAttention.length > 0
-                                    ? `2px solid ${C.border}`
-                                    : 'none',
-                              }}
-                            >
-                              <td colSpan={16} style={{ padding: '8px 14px' }}>
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      width: 8,
-                                      height: 8,
-                                      borderRadius: '50%',
-                                      background: C.cyan || '#06b6d4',
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 800,
-                                      color: C.cyan || '#06b6d4',
-                                      letterSpacing: '0.08em',
-                                      textTransform: 'uppercase',
-                                    }}
-                                  >
-                                    In Progress — {claimsInProgress.length}{' '}
-                                    claim
-                                    {claimsInProgress.length !== 1 ? 's' : ''}
-                                  </span>
-                                  <span
-                                    style={{ fontSize: 10, color: C.muted }}
-                                  >
-                                    {claimsInProgress.filter(
-                                      (c) => c.status === 'marketing_review'
-                                    ).length > 0 &&
-                                      `${
-                                        claimsInProgress.filter(
-                                          (c) => c.status === 'marketing_review'
-                                        ).length
-                                      } mktg review`}
-                                    {claimsInProgress.filter(
-                                      (c) => c.status === 'marketing_review'
-                                    ).length > 0 &&
-                                      claimsInProgress.filter(
-                                        (c) => c.status === 'finance_review'
-                                      ).length > 0 &&
-                                      ' · '}
-                                    {claimsInProgress.filter(
-                                      (c) => c.status === 'finance_review'
-                                    ).length > 0 &&
-                                      `${
-                                        claimsInProgress.filter(
-                                          (c) => c.status === 'finance_review'
-                                        ).length
-                                      } finance review`}
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          {claimsInProgress.map((c, i) =>
-                            renderClaimRow(c, i + 100)
-                          )}
-
-                          {/* === COMPLETED === */}
-                          {claimsCompleted.length > 0 && (
-                            <tr
-                              style={{
-                                background: C.success + '10',
-                                borderTop:
-                                  claimsNeedsAttention.length > 0 ||
-                                  claimsInProgress.length > 0
-                                    ? `2px solid ${C.border}`
-                                    : 'none',
-                              }}
-                            >
-                              <td colSpan={16} style={{ padding: '8px 14px' }}>
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      width: 8,
-                                      height: 8,
-                                      borderRadius: '50%',
-                                      background: C.success,
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 800,
-                                      color: C.success,
-                                      letterSpacing: '0.08em',
-                                      textTransform: 'uppercase',
-                                    }}
-                                  >
-                                    Completed — {claimsCompleted.length} claim
-                                    {claimsCompleted.length !== 1 ? 's' : ''}
-                                  </span>
-                                  <span
-                                    style={{ fontSize: 10, color: C.muted }}
-                                  >
-                                    {claimsCompleted.filter(
-                                      (c) => c.status === 'approved'
-                                    ).length > 0 &&
-                                      `${
-                                        claimsCompleted.filter(
-                                          (c) => c.status === 'approved'
-                                        ).length
-                                      } approved`}
-                                    {claimsCompleted.filter(
-                                      (c) => c.status === 'approved'
-                                    ).length > 0 &&
-                                      claimsCompleted.filter(
-                                        (c) => c.status === 'paid'
-                                      ).length > 0 &&
-                                      ' · '}
-                                    {claimsCompleted.filter(
-                                      (c) => c.status === 'paid'
-                                    ).length > 0 &&
-                                      `${
-                                        claimsCompleted.filter(
-                                          (c) => c.status === 'paid'
-                                        ).length
-                                      } paid`}
-                                    {claimsCompleted.filter(
-                                      (c) => c.status === 'on_hold'
-                                    ).length > 0 &&
-                                      ` · ${
-                                        claimsCompleted.filter(
-                                          (c) => c.status === 'on_hold'
-                                        ).length
-                                      } on hold`}
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          {claimsCompleted.map((c, i) =>
-                            renderClaimRow(c, i + 200)
-                          )}
-                        </>
-                      );
-                    })()}
+                        {/* === COMPLETED === */}
+                        {claimsCompleted.length > 0 && (
+                          <tr style={{ background: C.success + '10', borderTop: (claimsNeedsAttention.length > 0 || claimsInProgress.length > 0) ? `2px solid ${C.border}` : 'none' }}>
+                            <td colSpan={16} style={{ padding: '8px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.success, flexShrink: 0 }} />
+                                <span style={{ fontSize: 11, fontWeight: 800, color: C.success, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                  Completed — {claimsCompleted.length} claim{claimsCompleted.length !== 1 ? 's' : ''}
+                                </span>
+                                <span style={{ fontSize: 10, color: C.muted }}>
+                                  {claimsCompleted.filter(c => c.status === 'approved').length > 0 && `${claimsCompleted.filter(c => c.status === 'approved').length} approved`}
+                                  {claimsCompleted.filter(c => c.status === 'approved').length > 0 && claimsCompleted.filter(c => c.status === 'paid').length > 0 && ' · '}
+                                  {claimsCompleted.filter(c => c.status === 'paid').length > 0 && `${claimsCompleted.filter(c => c.status === 'paid').length} paid`}
+                                  {claimsCompleted.filter(c => c.status === 'on_hold').length > 0 && ` · ${claimsCompleted.filter(c => c.status === 'on_hold').length} on hold`}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {claimsCompleted.map((c, i) => renderClaimRow(c, i + 200))}
+                      </>
+                    );
+                  })()}
                   {filtered.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={16}
-                        style={{
-                          padding: 40,
-                          textAlign: 'center',
-                          color: C.muted,
-                        }}
-                      >
+                      <td colSpan={16} style={{ padding: 40, textAlign: 'center', color: C.muted }}>
                         No claims match the current filters
                       </td>
                     </tr>
                   )}
                 </tbody>
                 <tfoot>
-                  <tr
-                    style={{
-                      background: C.faint,
-                      borderTop: `2px solid ${C.border}`,
-                      position: 'sticky',
-                      bottom: 0,
-                    }}
-                  >
-                    <td
-                      colSpan={6}
-                      style={{
-                        padding: '9px 12px',
-                        fontWeight: 800,
-                        fontSize: 12,
-                      }}
-                    >
+                  <tr style={{ background: C.faint, borderTop: `2px solid ${C.border}`, position: 'sticky', bottom: 0 }}>
+                    <td colSpan={6} style={{ padding: '9px 12px', fontWeight: 800, fontSize: 12 }}>
                       TOTAL ({filtered.length} claims)
                     </td>
-                    <td
-                      style={{
-                        padding: '9px 12px',
-                        textAlign: 'right',
-                        fontFamily: 'monospace',
-                        fontWeight: 800,
-                        color: C.accent,
-                      }}
-                    >
+                    <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: C.accent }}>
                       —
                     </td>
                     <td />
-                    <td
-                      style={{
-                        padding: '9px 12px',
-                        textAlign: 'right',
-                        fontFamily: 'monospace',
-                        fontWeight: 800,
-                        color: '#f59e0b',
-                      }}
-                    >
+                    <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: '#f59e0b' }}>
                       USD {totalNetUSD.toLocaleString('en-US')}
                     </td>
                     <td />
-                    <td
-                      style={{
-                        padding: '9px 12px',
-                        textAlign: 'right',
-                        fontFamily: 'monospace',
-                        fontWeight: 800,
-                      }}
-                    >
-                      —
-                    </td>
-                    <td
-                      style={{
-                        padding: '9px 12px',
-                        textAlign: 'right',
-                        fontFamily: 'monospace',
-                        fontWeight: 800,
-                        color: C.success,
-                      }}
-                    >
+                    <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800 }}>—</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: C.success }}>
                       USD {totalTotalUSD.toLocaleString('en-US')}
                     </td>
                     <td colSpan={3} />
@@ -9809,18 +8550,8 @@ const ClaimsTab = ({
         <ClaimReviewModal
           claim={reviewClaim}
           onClose={() => setReviewClaim(null)}
-          onMove={(id, status) => {
-            moveClaim(id, status);
-            setReviewClaim((prev) => (prev ? { ...prev, status } : null));
-          }}
-          onHold={(id, note) => {
-            holdClaim(id, note);
-            setReviewClaim((prev) =>
-              prev
-                ? { ...prev, status: 'on_hold', reviewNotesMarketing: note }
-                : null
-            );
-          }}
+          onMove={(id, status) => { moveClaim(id, status); setReviewClaim(prev => prev ? { ...prev, status } : null); }}
+          onHold={(id, note) => { holdClaim(id, note); setReviewClaim(prev => prev ? { ...prev, status: 'on_hold', reviewNotesMarketing: note } : null); }}
           onNotify={notifyApproved}
         />
       )}
@@ -9828,20 +8559,12 @@ const ClaimsTab = ({
   );
 };
 
+
+
 // Partner form field components (defined outside modal to prevent remount on re-render)
 const PartnerLabel = ({ children, req }) => (
-  <div
-    style={{
-      fontSize: 10,
-      fontWeight: 700,
-      color: C.muted,
-      letterSpacing: '0.08em',
-      marginBottom: 5,
-      textTransform: 'uppercase',
-    }}
-  >
-    {children}
-    {req && <span style={{ color: C.danger }}> *</span>}
+  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: '0.08em', marginBottom: 5, textTransform: 'uppercase' }}>
+    {children}{req && <span style={{ color: C.danger }}> *</span>}
   </div>
 );
 
@@ -9874,14 +8597,13 @@ const EditPartnerModal = React.memo(({ partner, onSave, onClose }) => {
   });
   const [errors, setErrors] = React.useState({});
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = 'Required';
     if (!form.region.trim()) e.region = 'Required';
-    if (!form.allocated || isNaN(Number(form.allocated)))
-      e.allocated = 'Required';
+    if (!form.allocated || isNaN(Number(form.allocated))) e.allocated = 'Required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -9898,7 +8620,7 @@ const EditPartnerModal = React.memo(({ partner, onSave, onClose }) => {
       type: form.type,
       tier: form.tier,
       allocated: Number(form.allocated) || 0,
-      spent: partner?.spent || 0, // auto-calculated from approved claims
+      spent: partner?.spent || 0,  // auto-calculated from approved claims
       pending: Number(form.pending) || 0,
       status: form.status,
       contactName: form.contactName.trim(),
@@ -9909,173 +8631,65 @@ const EditPartnerModal = React.memo(({ partner, onSave, onClose }) => {
   };
 
   // Stable base style - avoids React DOM patching on every render
-  const _inpBase = {
-    background: C.faint,
-    color: C.text,
-    borderRadius: 8,
-    padding: '8px 12px',
-    fontSize: 13,
-    width: '100%',
-    outline: 'none',
-    boxSizing: 'border-box',
-  };
-  const inp = (err) => ({
-    ..._inpBase,
-    border: `1px solid ${err ? C.danger : C.border}`,
-  });
+  const _inpBase = { background: C.faint, color: C.text, borderRadius: 8, padding: '8px 12px', fontSize: 13, width: '100%', outline: 'none', boxSizing: 'border-box' };
+  const inp = (err) => ({ ..._inpBase, border: `1px solid ${err ? C.danger : C.border}` });
   const sel = (err) => ({ ...inp(err), cursor: 'pointer' });
+
+
 
   const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 };
 
   return (
-    <div
-      data-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.7)',
-        zIndex: 500,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          background: C.surface,
-          borderRadius: 20,
-          width: '100%',
-          maxWidth: 620,
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          border: `1px solid ${C.border}`,
-        }}
-      >
+    <div data-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: C.surface, borderRadius: 20, width: '100%', maxWidth: 620, maxHeight: '90vh', overflowY: 'auto', border: `1px solid ${C.border}` }}>
         {/* Header */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: `1px solid ${C.border}`,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            position: 'sticky',
-            top: 0,
-            background: C.surface,
-            zIndex: 1,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "'Syne',sans-serif",
-              fontWeight: 800,
-              fontSize: 18,
-            }}
-          >
+        <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: C.surface, zIndex: 1 }}>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18 }}>
             {isNew ? 'Add New Partner' : `Edit — ${partner.name}`}
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: C.muted,
-              fontSize: 22,
-              cursor: 'pointer',
-              lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Body */}
-        <div
-          style={{
-            padding: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-          }}
-        >
+        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
           {/* Partner Name */}
           <PartnerField label="Partner Name" req>
-            <input
-              value={form.name}
-              onChange={(e) => set('name', e.target.value)}
-              placeholder="e.g. TechVision Ltd"
-              style={inp(errors.name)}
-            />
-            {errors.name && (
-              <div style={{ fontSize: 10, color: C.danger, marginTop: 3 }}>
-                {errors.name}
-              </div>
-            )}
+            <input value={form.name} onChange={e => set('name', e.target.value)}
+              placeholder="e.g. TechVision Ltd" style={inp(errors.name)} />
+            {errors.name && <div style={{ fontSize: 10, color: C.danger, marginTop: 3 }}>{errors.name}</div>}
           </PartnerField>
 
           {/* Geography */}
           <div style={grid2}>
             <PartnerField label="Region" req>
-              <select
-                value={form.region}
-                onChange={(e) => set('region', e.target.value)}
-                style={sel(errors.region)}
-              >
+              <select value={form.region} onChange={e => set('region', e.target.value)} style={sel(errors.region)}>
                 <option value="">-- select --</option>
-                {['Europe', 'US', 'International'].map((r) => (
-                  <option key={r}>{r}</option>
-                ))}
+                {['Europe', 'US', 'International'].map(r => <option key={r}>{r}</option>)}
               </select>
-              {errors.region && (
-                <div style={{ fontSize: 10, color: C.danger, marginTop: 3 }}>
-                  {errors.region}
-                </div>
-              )}
+              {errors.region && <div style={{ fontSize: 10, color: C.danger, marginTop: 3 }}>{errors.region}</div>}
             </PartnerField>
             <PartnerField label="Sub-Region">
-              <input
-                value={form.subregion}
-                onChange={(e) => set('subregion', e.target.value)}
-                placeholder="e.g. UK&I, DACH, Nordics"
-                style={inp()}
-              />
+              <input value={form.subregion} onChange={e => set('subregion', e.target.value)}
+                placeholder="e.g. UK&I, DACH, Nordics" style={inp()} />
             </PartnerField>
           </div>
 
           <PartnerField label="Country">
-            <input
-              value={form.country}
-              onChange={(e) => set('country', e.target.value)}
-              placeholder="e.g. Italy"
-              style={inp()}
-            />
+            <input value={form.country} onChange={e => set('country', e.target.value)}
+              placeholder="e.g. Italy" style={inp()} />
           </PartnerField>
 
           {/* Classification */}
           <div style={grid2}>
             <PartnerField label="Type">
-              <select
-                value={form.type}
-                onChange={(e) => set('type', e.target.value)}
-                style={sel()}
-              >
-                {['Reseller', 'Distributor', 'GSI', 'ISVP', 'MSP', 'Other'].map(
-                  (t) => (
-                    <option key={t}>{t}</option>
-                  )
-                )}
+              <select value={form.type} onChange={e => set('type', e.target.value)} style={sel()}>
+                {['Reseller', 'Distributor', 'GSI', 'ISVP', 'MSP', 'Other'].map(t => <option key={t}>{t}</option>)}
               </select>
             </PartnerField>
             <PartnerField label="Level">
-              <select
-                value={form.tier}
-                onChange={(e) => set('tier', e.target.value)}
-                style={sel()}
-              >
-                {['Platinum', 'Gold', 'Silver', 'Bronze'].map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
+              <select value={form.tier} onChange={e => set('tier', e.target.value)} style={sel()}>
+                {['Platinum', 'Gold', 'Silver', 'Bronze'].map(t => <option key={t}>{t}</option>)}
               </select>
             </PartnerField>
           </div>
@@ -10083,61 +8697,30 @@ const EditPartnerModal = React.memo(({ partner, onSave, onClose }) => {
           {/* Budget */}
           <div style={grid2}>
             <PartnerField label="Budget Allocated (USD)" req>
-              <input
-                type="number"
-                value={form.allocated}
-                onChange={(e) => set('allocated', e.target.value)}
-                placeholder="0"
-                style={inp(errors.allocated)}
-              />
-              {errors.allocated && (
-                <div style={{ fontSize: 10, color: C.danger, marginTop: 3 }}>
-                  {errors.allocated}
-                </div>
-              )}
+              <input type="number" value={form.allocated} onChange={e => set('allocated', e.target.value)}
+                placeholder="0" style={inp(errors.allocated)} />
+              {errors.allocated && <div style={{ fontSize: 10, color: C.danger, marginTop: 3 }}>{errors.allocated}</div>}
             </PartnerField>
+
           </div>
 
           {/* Contact */}
           <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: C.accent,
-                letterSpacing: '0.08em',
-                marginBottom: 12,
-                textTransform: 'uppercase',
-              }}
-            >
-              Contact & Team
-            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase' }}>Contact & Team</div>
             <div style={grid2}>
               <PartnerField label="Contact Name">
-                <input
-                  value={form.contactName}
-                  onChange={(e) => set('contactName', e.target.value)}
-                  placeholder="e.g. John Smith"
-                  style={inp()}
-                />
+                <input value={form.contactName} onChange={e => set('contactName', e.target.value)}
+                  placeholder="e.g. John Smith" style={inp()} />
               </PartnerField>
               <PartnerField label="Contact Email">
-                <input
-                  value={form.contactEmail}
-                  onChange={(e) => set('contactEmail', e.target.value)}
-                  placeholder="john@partner.com"
-                  style={inp()}
-                />
+                <input value={form.contactEmail} onChange={e => set('contactEmail', e.target.value)}
+                  placeholder="john@partner.com" style={inp()} />
               </PartnerField>
             </div>
             <div style={{ marginTop: 14 }}>
               <PartnerField label="Partner Account Manager (PAM)">
-                <input
-                  value={form.accountManager}
-                  onChange={(e) => set('accountManager', e.target.value)}
-                  placeholder="Full name"
-                  style={inp()}
-                />
+                <input value={form.accountManager} onChange={e => set('accountManager', e.target.value)}
+                  placeholder="Full name" style={inp()} />
               </PartnerField>
             </div>
           </div>
@@ -10145,67 +8728,23 @@ const EditPartnerModal = React.memo(({ partner, onSave, onClose }) => {
           {/* Status & Note */}
           <div style={grid2}>
             <PartnerField label="Status">
-              <select
-                value={form.status}
-                onChange={(e) => set('status', e.target.value)}
-                style={sel()}
-              >
-                {['Active', 'Inactive', 'Prospect'].map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
+              <select value={form.status} onChange={e => set('status', e.target.value)} style={sel()}>
+                {['Active', 'Inactive', 'Prospect'].map(s => <option key={s}>{s}</option>)}
               </select>
             </PartnerField>
             <PartnerField label="Note">
-              <input
-                value={form.note}
-                onChange={(e) => set('note', e.target.value)}
-                placeholder="Optional note"
-                style={inp()}
-              />
+              <input value={form.note} onChange={e => set('note', e.target.value)}
+                placeholder="Optional note" style={inp()} />
             </PartnerField>
           </div>
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderTop: `1px solid ${C.border}`,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 10,
-            position: 'sticky',
-            bottom: 0,
-            background: C.surface,
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: `1px solid ${C.border}`,
-              color: C.muted,
-              borderRadius: 10,
-              padding: '9px 20px',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
+        <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end', gap: 10, position: 'sticky', bottom: 0, background: C.surface }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.muted, borderRadius: 10, padding: '9px 20px', fontSize: 13, cursor: 'pointer' }}>
             Cancel
           </button>
-          <button
-            onClick={save}
-            style={{
-              background: C.accent,
-              color: '#fff',
-              border: 'none',
-              borderRadius: 10,
-              padding: '9px 24px',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
+          <button onClick={save} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 24px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             {isNew ? 'Add Partner' : 'Save Changes'}
           </button>
         </div>
@@ -10213,6 +8752,7 @@ const EditPartnerModal = React.memo(({ partner, onSave, onClose }) => {
     </div>
   );
 });
+
 
 // ============================================================
 // PIPELINE IMPORT MODAL
@@ -10224,64 +8764,25 @@ const PipelineImportModal = ({ onImport, onClose, C }) => {
   const fileRef = React.useRef(null);
 
   const parseCSV = (text) => {
-    const lines = text
-      .trim()
-      .split('\n')
-      .filter((l) => l.trim());
-    if (lines.length < 2) {
-      setError('File must have a header row and at least one data row');
-      return;
-    }
-    const headers = lines[0].split(',').map((h) =>
-      h
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9_]/g, '_')
-    );
-    const campaignCol = headers.findIndex((h) => h.includes('campaign'));
-    const pipelineCol = headers.findIndex(
-      (h) =>
-        h.includes('pipeline') ||
-        h.includes('amount') ||
-        h.includes('revenue') ||
-        h.includes('value')
-    );
-    if (campaignCol === -1) {
-      setError(
-        'Could not find a Campaign ID column. Expected header containing "campaign"'
-      );
-      return;
-    }
-    if (pipelineCol === -1) {
-      setError(
-        'Could not find a Pipeline column. Expected header containing "pipeline", "amount", "revenue", or "value"'
-      );
-      return;
-    }
-    const parsed = lines
-      .slice(1)
-      .map((line) => {
-        const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
-        const pipeline = parseFloat(cols[pipelineCol]) || 0;
-        return {
-          campaignId: cols[campaignCol] || '',
-          pipeline: Math.max(0, pipeline),
-        }; // BREAK-010: clamp negatives to 0
-      })
-      .filter((r) => r.campaignId);
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) { setError('File must have a header row and at least one data row'); return; }
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g,'_'));
+    const campaignCol = headers.findIndex(h => h.includes('campaign'));
+    const pipelineCol = headers.findIndex(h => h.includes('pipeline') || h.includes('amount') || h.includes('revenue') || h.includes('value'));
+    if (campaignCol === -1) { setError('Could not find a Campaign ID column. Expected header containing "campaign"'); return; }
+    if (pipelineCol === -1) { setError('Could not find a Pipeline column. Expected header containing "pipeline", "amount", "revenue", or "value"'); return; }
+    const parsed = lines.slice(1).map(line => {
+      const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g,''));
+      const pipeline = parseFloat(cols[pipelineCol]) || 0;
+      return { campaignId: cols[campaignCol] || '', pipeline: Math.max(0, pipeline) }; // BREAK-010: clamp negatives to 0
+    }).filter(r => r.campaignId);
     // Warn if any negative values were clamped
-    const negCount = lines.slice(1).filter((line) => {
-      const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+    const negCount = lines.slice(1).filter(line => {
+      const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g,''));
       return parseFloat(cols[pipelineCol]) < 0;
     }).length;
-    if (negCount > 0)
-      setError(
-        `${negCount} negative value(s) were set to 0. Check your source data.`
-      );
-    if (parsed.length === 0) {
-      setError('No valid rows found');
-      return;
-    }
+    if (negCount > 0) setError(`${negCount} negative value(s) were set to 0. Check your source data.`);
+    if (parsed.length === 0) { setError('No valid rows found'); return; }
     setRows(parsed);
     setStep('preview');
     setError('');
@@ -10291,241 +8792,68 @@ const PipelineImportModal = ({ onImport, onClose, C }) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => parseCSV(ev.target.result);
+    reader.onload = ev => parseCSV(ev.target.result);
     reader.readAsText(file);
   };
 
   const handleImport = () => {
     const data = {};
-    rows.forEach((r) => {
-      data[r.campaignId] = (data[r.campaignId] || 0) + r.pipeline;
-    });
+    rows.forEach(r => { data[r.campaignId] = (data[r.campaignId] || 0) + r.pipeline; });
     onImport(data, rows.length);
     setStep('done');
   };
 
-  const inp = {
-    background: C.faint,
-    border: `1px solid ${C.border}`,
-    color: C.text,
-    borderRadius: 8,
-    padding: '8px 12px',
-    fontSize: 13,
-    width: '100%',
-    outline: 'none',
-    boxSizing: 'border-box',
-  };
+  const inp = { background: C.faint, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, padding: '8px 12px', fontSize: 13, width: '100%', outline: 'none', boxSizing: 'border-box' };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.7)',
-        zIndex: 600,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          background: C.surface,
-          borderRadius: 20,
-          width: '100%',
-          maxWidth: 560,
-          border: `1px solid ${C.border}`,
-        }}
-      >
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+      <div style={{ background:C.surface, borderRadius:20, width:'100%', maxWidth:560, border:`1px solid ${C.border}` }}>
         {/* Header */}
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: `1px solid ${C.border}`,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "'Syne',sans-serif",
-              fontWeight: 800,
-              fontSize: 18,
-            }}
-          >
-            Import Pipeline Data
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: C.muted,
-              fontSize: 22,
-              cursor: 'pointer',
-            }}
-          >
-            ×
-          </button>
+        <div style={{ padding:'18px 24px', borderBottom:`1px solid ${C.border}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:18 }}>Import Pipeline Data</div>
+          <button onClick={onClose} style={{ background:'transparent', border:'none', color:C.muted, fontSize:22, cursor:'pointer' }}>×</button>
         </div>
 
-        <div style={{ padding: 24 }}>
+        <div style={{ padding:24 }}>
           {step === 'upload' && (
             <div>
-              <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
-                Upload a CSV file with two columns:{' '}
-                <strong style={{ color: C.text }}>Campaign ID</strong> and{' '}
-                <strong style={{ color: C.text }}>Pipeline Amount</strong>. The
-                Campaign ID must match the Campaign IDs entered in approved
-                activities.
+              <p style={{ fontSize:13, color:C.muted, marginBottom:16 }}>
+                Upload a CSV file with two columns: <strong style={{color:C.text}}>Campaign ID</strong> and <strong style={{color:C.text}}>Pipeline Amount</strong>. 
+                The Campaign ID must match the Campaign IDs entered in approved activities.
               </p>
-              <div
-                style={{
-                  background: C.faint,
-                  border: `1px dashed ${C.border}`,
-                  borderRadius: 12,
-                  padding: 32,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  marginBottom: 16,
-                }}
-                onClick={() => fileRef.current?.click()}
-              >
-                <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: C.text,
-                    marginBottom: 4,
-                  }}
-                >
-                  Click to upload CSV
-                </div>
-                <div style={{ fontSize: 12, color: C.muted }}>
-                  campaign_id, pipeline_amount
-                </div>
+              <div style={{ background:C.faint, border:`1px dashed ${C.border}`, borderRadius:12, padding:32, textAlign:'center', cursor:'pointer', marginBottom:16 }}
+                onClick={() => fileRef.current?.click()}>
+                <div style={{ fontSize:28, marginBottom:8 }}>📊</div>
+                <div style={{ fontSize:14, fontWeight:700, color:C.text, marginBottom:4 }}>Click to upload CSV</div>
+                <div style={{ fontSize:12, color:C.muted }}>campaign_id, pipeline_amount</div>
               </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".csv,.txt"
-                onChange={handleFile}
-                style={{ display: 'none' }}
-              />
-              {error && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: C.danger,
-                    padding: '8px 12px',
-                    background: C.danger + '15',
-                    borderRadius: 8,
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-              <div
-                style={{
-                  marginTop: 16,
-                  background: C.faint,
-                  borderRadius: 10,
-                  padding: '12px 16px',
-                  fontSize: 11,
-                  color: C.muted,
-                }}
-              >
-                <div
-                  style={{ fontWeight: 700, marginBottom: 4, color: C.text }}
-                >
-                  Expected CSV format:
-                </div>
-                <code style={{ fontFamily: 'monospace' }}>
-                  campaign_id,pipeline_amount
-                  <br />
-                  ALO-2026-001,120000
-                  <br />
-                  ALO-2026-002,85000
-                </code>
+              <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} style={{ display:'none' }} />
+              {error && <div style={{ fontSize:12, color:C.danger, padding:'8px 12px', background:C.danger+'15', borderRadius:8 }}>{error}</div>}
+              <div style={{ marginTop:16, background:C.faint, borderRadius:10, padding:'12px 16px', fontSize:11, color:C.muted }}>
+                <div style={{ fontWeight:700, marginBottom:4, color:C.text }}>Expected CSV format:</div>
+                <code style={{ fontFamily:'monospace' }}>campaign_id,pipeline_amount<br/>ALO-2026-001,120000<br/>ALO-2026-002,85000</code>
               </div>
             </div>
           )}
 
           {step === 'preview' && (
             <div>
-              <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
-                Found{' '}
-                <strong style={{ color: C.text }}>{rows.length} records</strong>
-                . This will update pipeline values for matching Campaign IDs
-                only — no other data will be changed.
+              <div style={{ fontSize:13, color:C.muted, marginBottom:12 }}>
+                Found <strong style={{color:C.text}}>{rows.length} records</strong>. This will update pipeline values for matching Campaign IDs only — no other data will be changed.
               </div>
-              <div
-                style={{
-                  maxHeight: 280,
-                  overflowY: 'auto',
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 10,
-                }}
-              >
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div style={{ maxHeight:280, overflowY:'auto', border:`1px solid ${C.border}`, borderRadius:10 }}>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
-                    <tr style={{ background: C.faint }}>
-                      <th
-                        style={{
-                          padding: '8px 12px',
-                          textAlign: 'left',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: C.muted,
-                        }}
-                      >
-                        Campaign ID
-                      </th>
-                      <th
-                        style={{
-                          padding: '8px 12px',
-                          textAlign: 'right',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: C.muted,
-                        }}
-                      >
-                        Pipeline Amount
-                      </th>
+                    <tr style={{ background:C.faint }}>
+                      <th style={{ padding:'8px 12px', textAlign:'left', fontSize:11, fontWeight:700, color:C.muted }}>Campaign ID</th>
+                      <th style={{ padding:'8px 12px', textAlign:'right', fontSize:11, fontWeight:700, color:C.muted }}>Pipeline Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((r, i) => (
-                      <tr
-                        key={i}
-                        style={{
-                          borderTop: `1px solid ${C.border}20`,
-                          background: i % 2 === 0 ? C.faint : C.surface,
-                        }}
-                      >
-                        <td
-                          style={{
-                            padding: '7px 12px',
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                            color: C.accent,
-                          }}
-                        >
-                          {r.campaignId}
-                        </td>
-                        <td
-                          style={{
-                            padding: '7px 12px',
-                            textAlign: 'right',
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            color: '#10b981',
-                          }}
-                        >
+                      <tr key={i} style={{ borderTop:`1px solid ${C.border}20`, background: i%2===0 ? C.faint : C.surface }}>
+                        <td style={{ padding:'7px 12px', fontFamily:'monospace', fontSize:12, color:C.accent }}>{r.campaignId}</td>
+                        <td style={{ padding:'7px 12px', textAlign:'right', fontFamily:'monospace', fontSize:12, fontWeight:700, color:'#10b981' }}>
                           {Number(r.pipeline).toLocaleString('en-US')}
                         </td>
                       </tr>
@@ -10533,81 +8861,27 @@ const PipelineImportModal = ({ onImport, onClose, C }) => {
                   </tbody>
                 </table>
               </div>
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: '10px 14px',
-                  background: '#10b98115',
-                  border: '1px solid #10b98130',
-                  borderRadius: 8,
-                  fontSize: 12,
-                  color: '#10b981',
-                  fontWeight: 600,
-                }}
-              >
-                ✓ Safe import — only pipeline values are updated. Partner
-                allocations, requests, and claims are not affected.
+              <div style={{ marginTop:12, padding:'10px 14px', background:'#10b98115', border:'1px solid #10b98130', borderRadius:8, fontSize:12, color:'#10b981', fontWeight:600 }}>
+                ✓ Safe import — only pipeline values are updated. Partner allocations, requests, and claims are not affected.
               </div>
             </div>
           )}
 
           {step === 'done' && (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: C.text,
-                  marginBottom: 8,
-                }}
-              >
-                Pipeline data imported!
-              </div>
-              <div style={{ fontSize: 13, color: C.muted }}>
-                {rows.length} Campaign IDs updated
-              </div>
+            <div style={{ textAlign:'center', padding:'20px 0' }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>✅</div>
+              <div style={{ fontSize:16, fontWeight:700, color:C.text, marginBottom:8 }}>Pipeline data imported!</div>
+              <div style={{ fontSize:13, color:C.muted }}>{rows.length} Campaign IDs updated</div>
             </div>
           )}
         </div>
 
-        <div
-          style={{
-            padding: '16px 24px',
-            borderTop: `1px solid ${C.border}`,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 10,
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: `1px solid ${C.border}`,
-              color: C.muted,
-              borderRadius: 10,
-              padding: '9px 20px',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
+        <div style={{ padding:'16px 24px', borderTop:`1px solid ${C.border}`, display:'flex', justifyContent:'flex-end', gap:10 }}>
+          <button onClick={onClose} style={{ background:'transparent', border:`1px solid ${C.border}`, color:C.muted, borderRadius:10, padding:'9px 20px', fontSize:13, cursor:'pointer' }}>
             {step === 'done' ? 'Close' : 'Cancel'}
           </button>
           {step === 'preview' && (
-            <button
-              onClick={handleImport}
-              style={{
-                background: '#10b981',
-                color: '#000',
-                border: 'none',
-                borderRadius: 10,
-                padding: '9px 24px',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
+            <button onClick={handleImport} style={{ background:'#10b981', color:'#000', border:'none', borderRadius:10, padding:'9px 24px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
               Import {rows.length} Records
             </button>
           )}
@@ -10617,93 +8891,36 @@ const PipelineImportModal = ({ onImport, onClose, C }) => {
   );
 };
 
+
 // ── Dashboard partner performance row (defined outside App to prevent remount) ──
 const DashPartnerRow = ({ p }) => {
   const ROI_TARGET = 30;
   const pct = Math.min(Math.round((p.ratio / ROI_TARGET) * 100), 150);
-  const barColor =
-    p.ratio >= ROI_TARGET
-      ? '#10b981'
-      : p.ratio >= ROI_TARGET * 0.7
-      ? '#f59e0b'
-      : '#ef4444';
-  const tierCol =
-    p.tier === 'Platinum' ? '#f59e0b' : p.tier === 'Gold' ? C.accent : C.muted;
+  const barColor = p.ratio >= ROI_TARGET ? '#10b981' : p.ratio >= ROI_TARGET * 0.7 ? '#f59e0b' : '#ef4444';
+  const tierCol = p.tier === 'Platinum' ? '#f59e0b' : p.tier === 'Gold' ? C.accent : C.muted;
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '10px 0',
-        borderBottom: `1px solid ${C.border}20`,
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            marginBottom: 4,
-          }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>
-            {p.name}
-          </span>
-          {p.tier && (
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                color: tierCol,
-                background: tierCol + '20',
-                borderRadius: 4,
-                padding: '1px 5px',
-              }}
-            >
-              {p.tier}
-            </span>
-          )}
+    <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:`1px solid ${C.border}20` }}>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
+          <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{p.name}</span>
+          {p.tier && <span style={{ fontSize:9, fontWeight:700, color:tierCol, background:tierCol+'20', borderRadius:4, padding:'1px 5px' }}>{p.tier}</span>}
         </div>
-        <div
-          style={{
-            background: C.faint,
-            borderRadius: 4,
-            height: 6,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              width: `${Math.min(pct, 100)}%`,
-              height: '100%',
-              background: barColor,
-              borderRadius: 4,
-            }}
-          />
+        <div style={{ background:C.faint, borderRadius:4, height:6, overflow:'hidden' }}>
+          <div style={{ width:`${Math.min(pct,100)}%`, height:'100%', background:barColor, borderRadius:4 }} />
         </div>
       </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 800,
-            color: barColor,
-            fontFamily: 'monospace',
-          }}
-        >
+      <div style={{ textAlign:'right', flexShrink:0 }}>
+        <div style={{ fontSize:13, fontWeight:800, color:barColor, fontFamily:'monospace' }}>
           {p.hasPipeline ? `1:${Math.round(p.ratio)}` : '—'}
         </div>
-        <div style={{ fontSize: 10, color: C.muted }}>
-          {p.hasPipeline
-            ? `USD ${Math.round(p.totalPipeline).toLocaleString()}`
-            : 'No pipeline'}
+        <div style={{ fontSize:10, color:C.muted }}>
+          {p.hasPipeline ? `USD ${Math.round(p.totalPipeline).toLocaleString()}` : 'No pipeline'}
         </div>
       </div>
     </div>
   );
 };
+
 
 export default function App() {
   // ── SSO: replace this with the identity provider's display name ──
@@ -10712,12 +8929,7 @@ export default function App() {
   const currentUser = 'Decio A.';
   const [loggedIn, setLoggedIn] = useState(false);
   const [pipelineData, setPipelineData] = useState(() => {
-    try {
-      const d = loadPersistedData();
-      return d?.pipelineData || {};
-    } catch {
-      return {};
-    }
+    try { const d = loadPersistedData(); return d?.pipelineData || {}; } catch { return {}; }
   }); // { campaignId: pipelineAmount } - persisted to localStorage
   const [showPipelineImport, setShowPipelineImport] = useState(false);
   const [dbLoaded, setDbLoaded] = useState(false);
@@ -11096,40 +9308,30 @@ export default function App() {
   const [claims, setClaims] = useState([]);
 
   // Auto-calculate spent per partner from approved/paid claims
-  const getPartnerSpent = React.useCallback(
-    (partnerName) => {
-      return claims
-        .filter(
-          (c) =>
-            c.partner === partnerName && ['approved', 'paid'].includes(c.status)
-        )
-        .reduce((s, c) => {
-          // Use claimAmount directly in local currency - stored as EUR equivalent
-          return s + Number(c.claimAmount || 0);
-        }, 0);
-    },
-    [claims]
-  );
+  const getPartnerSpent = React.useCallback((partnerName) => {
+    return claims
+      .filter(c => c.partner === partnerName && ['approved','paid'].includes(c.status))
+      .reduce((s, c) => {
+        // Use claimAmount directly in local currency - stored as EUR equivalent
+        return s + Number(c.claimAmount || 0);
+      }, 0);
+  }, [claims]);
 
   // Enrich partners with auto-calculated spent
-  const enrichedPartners = React.useMemo(
-    () =>
-      partners.map((p) => ({
-        ...p,
-        spent: getPartnerSpent(p.name),
-        // Sum pipeline for all this partner's activities
-        // Key lookup matches AnalyticsTab: campaignId first, then item.id (rowKey)
-        pipeline: requests
-          .filter((r) => r.partner === p.name)
-          .flatMap((r) => r.items || [])
-          .reduce((s, it) => {
-            return (
-              s + (pipelineData[it.campaignId] || pipelineData[it.id] || 0)
-            );
-          }, 0),
-      })),
-    [partners, claims, requests, pipelineData, getPartnerSpent]
-  );
+  const enrichedPartners = React.useMemo(() =>
+    partners.map(p => ({
+      ...p,
+      spent: getPartnerSpent(p.name),
+      // Sum pipeline for all this partner's activities
+      // Key lookup matches AnalyticsTab: campaignId first, then item.id (rowKey)
+      pipeline: requests
+        .filter(r => r.partner === p.name)
+        .flatMap(r => r.items || [])
+        .reduce((s, it) => {
+          return s + (pipelineData[it.campaignId] || pipelineData[it.id] || 0);
+        }, 0),
+    }))
+  , [partners, claims, requests, pipelineData, getPartnerSpent]);
   const [history, setHistory] = useState([]);
 
   const addHistory = useCallback(
@@ -11137,8 +9339,7 @@ export default function App() {
       setHistory((prev) =>
         [
           {
-            id:
-              Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2,5),
             action,
             entity,
             type,
@@ -11231,23 +9432,10 @@ export default function App() {
           supa.from('request_items').select(),
           supa.from('claims').select(),
         ]);
-        console.log(
-          '[MDF] Loaded:',
-          pRows.length,
-          'partners,',
-          rRows.length,
-          'requests,',
-          cRows.length,
-          'claims'
-        );
+        console.log('[MDF] Loaded:', pRows.length, 'partners,', rRows.length, 'requests,', cRows.length, 'claims');
 
         const partners = pRows.map(dbToPartner);
-        const reqs = rRows.map((r) =>
-          dbToRequest(
-            r,
-            iRows.filter((it) => it.request_id === r.id)
-          )
-        );
+        const reqs = rRows.map(r => dbToRequest(r, iRows.filter(it => it.request_id === r.id)));
         const claims = cRows.map(dbToClaim);
 
         setPartners(partners);
@@ -11255,29 +9443,16 @@ export default function App() {
         setClaims(claims);
 
         // History is non-critical — load async after main data is shown
-        supa
-          .from('history')
-          .select('order=ts.desc&limit=100')
-          .then((hRows) =>
-            setHistory(
-              hRows.map((h) => ({
-                id: h.id,
-                action: h.action,
-                entity: h.entity,
-                type: h.type,
-                user: h.user_name,
-                ts: new Date(h.ts).toLocaleString('en-US'),
-              }))
-            )
-          )
-          .catch(() => {});
+        supa.from('history').select('order=ts.desc&limit=100')
+          .then(hRows => setHistory(hRows.map(h => ({
+            id: h.id, action: h.action, entity: h.entity,
+            type: h.type, user: h.user_name,
+            ts: new Date(h.ts).toLocaleString('en-US'),
+          })))).catch(() => {});
 
         setDbLoaded(true);
         console.log('[MDF] All data loaded successfully');
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ partners, requests: reqs, claims, pipelineData })
-        );
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ partners, requests: reqs, claims, pipelineData }));
       } catch (err) {
         console.error('[MDF] DB load error:', err.message);
         setDbError(err.message);
@@ -11315,14 +9490,7 @@ export default function App() {
           supa.from('request_items').select(),
           supa.from('claims').select(),
         ]);
-        setRequests(
-          rRows.map((r) =>
-            dbToRequest(
-              r,
-              iRows.filter((it) => it.request_id === r.id)
-            )
-          )
-        );
+        setRequests(rRows.map(r => dbToRequest(r, iRows.filter(it => it.request_id === r.id))));
         setClaims(cRows.map(dbToClaim));
         // Clear DB error if poll succeeds after a failure
         if (dbError) setDbError(null);
@@ -11336,20 +9504,17 @@ export default function App() {
     return () => clearInterval(interval);
   }, [dbLoaded]);
 
-  // ============================================================
+    // ============================================================
   // DB WRITE HELPERS (called alongside setState)
   // ============================================================
   const dbSaveRequest = async (req) => {
     try {
       console.log('[MDF] Saving request:', req.id);
       await supa.upsert('requests', {
-        id: req.id,
-        partner_name: req.partner,
-        submitted: req.submitted,
-        status: req.status,
+        id: req.id, partner_name: req.partner,
+        submitted: req.submitted, status: req.status,
         assigned_to: req.assignedTo || '',
-        po_number: req.poNumber || '',
-        note: req.note || '',
+        po_number: req.poNumber || '', note: req.note || '',
         partner_notified: req.partnerNotified || false,
         notified_at: req.notifiedAt || null,
         bp_generated_at: req.bpGeneratedAt || null,
@@ -11358,65 +9523,43 @@ export default function App() {
       });
       // Upsert items
       if (req.items?.length) {
-        await supa.upsert(
-          'request_items',
-          req.items.map((it) => itemToDB(it, req.id))
-        );
+        await supa.upsert('request_items', req.items.map(it => itemToDB(it, req.id)));
       }
-    } catch (err) {
-      console.warn('dbSaveRequest error:', err.message);
-    }
+    } catch (err) { console.warn('dbSaveRequest error:', err.message); }
   };
 
   const dbSaveClaim = async (claim) => {
     try {
       await supa.upsert('claims', claimToDB(claim));
-    } catch (err) {
-      console.warn('dbSaveClaim error:', err.message);
-    }
+    } catch (err) { console.warn('dbSaveClaim error:', err.message); }
   };
 
   const dbSavePipeline = async (campaignId, amount) => {
     try {
-      await supa.upsert('pipeline', {
-        campaign_id: campaignId,
-        pipeline_amount: amount,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.warn('dbSavePipeline error:', err.message);
-    }
+      await supa.upsert('pipeline', { campaign_id: campaignId, pipeline_amount: amount, updated_at: new Date().toISOString() });
+    } catch (err) { console.warn('dbSavePipeline error:', err.message); }
   };
 
   const dbSavePartner = async (partner) => {
     try {
       await supa.upsert('partners', partnerToDB(partner));
-    } catch (err) {
-      console.warn('dbSavePartner error:', err.message);
-    }
+    } catch (err) { console.warn('dbSavePartner error:', err.message); }
   };
 
   const dbAddHistory = async (action, entity, type) => {
     try {
       await supa.insert('history', {
-        action,
-        entity,
-        type,
+        action, entity, type,
         user_name: portalUser ? portalUser.partner.name : currentUser,
       });
-    } catch (err) {
-      console.warn('dbAddHistory error:', err.message);
-    }
+    } catch (err) { console.warn('dbAddHistory error:', err.message); }
   };
 
   // Persist to localStorage as offline fallback (includes pipelineData)
   useEffect(() => {
     if (!dbLoaded) return;
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ partners, requests, claims, pipelineData })
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ partners, requests, claims, pipelineData }));
     } catch {}
   }, [partners, requests, claims, pipelineData, dbLoaded]);
 
@@ -11451,33 +9594,28 @@ export default function App() {
 
   // Badge = requests with no CMM assigned + requests with unacknowledged partner changes
   const pendingCnt = requests.filter(
-    (r) =>
-      !r.assignedTo ||
-      (r.items || []).some(
-        (it) =>
-          ['cancelled_by_partner', 'postponed'].includes(it.itemStatus) &&
-          !it.acknowledged
-      )
+    (r) => !r.assignedTo || (r.items || []).some(it =>
+      (['cancelled_by_partner','postponed'].includes(it.itemStatus) && !it.acknowledged)
+    )
   ).length;
   const cancelledByPartnerCnt = requests.reduce(
     (s, r) =>
-      (r.items || []).filter(
-        (it) => it.itemStatus === 'cancelled_by_partner' && !it.acknowledged
-      ).length + s,
+      (r.items || []).filter((it) => it.itemStatus === 'cancelled_by_partner' && !it.acknowledged)
+        .length + s,
     0
   );
   // Unassigned new requests count
-  const unassignedReqCnt = requests.filter(
-    (r) => !r.assignedTo && ['request_submitted', 'approved'].includes(r.status)
+  const unassignedReqCnt = requests.filter(r =>
+    !r.assignedTo && ['request_submitted','approved'].includes(r.status)
   ).length;
   const postponedByPartnerCnt = requests.reduce(
     (s, r) =>
-      (r.items || []).filter(
-        (it) => it.itemStatus === 'postponed' && !it.acknowledged
-      ).length + s,
+      (r.items || []).filter((it) => it.itemStatus === 'postponed' && !it.acknowledged).length + s,
     0
   );
-  const claimPendingCnt = claims.filter((c) => c.status === 'submitted').length;
+  const claimPendingCnt = claims.filter(
+    (c) => c.status === 'submitted'
+  ).length;
 
   const dashPartners = useMemo(
     () =>
@@ -11522,15 +9660,7 @@ export default function App() {
           return false;
         return true;
       }),
-    [
-      partners,
-      dashMacro,
-      dashSubregion,
-      dashTier,
-      dashPartner,
-      dashPartnerType,
-      dashPAM,
-    ]
+    [partners, dashMacro, dashSubregion, dashTier, dashPartner, dashPartnerType, dashPAM]
   );
 
   const dashPartnerNames = useMemo(
@@ -11549,45 +9679,26 @@ export default function App() {
   const totalAlloc = dashPartners.reduce((s, p) => s + p.allocated, 0);
   // Pending = MDF from signed requests (committed, waiting for PO)
   const totalPending = (() => {
-    const partnerNames = new Set(dashPartners.map((p) => p.name));
+    const partnerNames = new Set(dashPartners.map(p => p.name));
     return requests
-      .filter((r) => partnerNames.has(r.partner) && r.status === 'signed')
-      .flatMap((r) => r.items || [])
-      .reduce(
-        (s, it) =>
-          s +
-          toUSD(
-            it.mdfRequest || Math.round((it.amount || 0) * 0.5),
-            it.localCurrency || 'EUR'
-          ),
-        0
-      );
+      .filter(r => partnerNames.has(r.partner) && r.status === 'signed')
+      .flatMap(r => r.items || [])
+      .reduce((s, it) => s + toUSD(it.mdfRequest || Math.round((it.amount||0)*0.5), it.localCurrency||'EUR'), 0);
   })();
   // Allocated = MDF from PO raised requests only (real budget commitment)
   const totalAllocated = (() => {
-    const partnerNames = new Set(dashPartners.map((p) => p.name));
+    const partnerNames = new Set(dashPartners.map(p => p.name));
     return requests
-      .filter((r) => partnerNames.has(r.partner) && r.status === 'po_raised')
-      .flatMap((r) => r.items || [])
-      .reduce(
-        (s, it) =>
-          s +
-          toUSD(
-            it.mdfRequest || Math.round((it.amount || 0) * 0.5),
-            it.localCurrency || 'EUR'
-          ),
-        0
-      );
+      .filter(r => partnerNames.has(r.partner) && r.status === 'po_raised')
+      .flatMap(r => r.items || [])
+      .reduce((s, it) => s + toUSD(it.mdfRequest || Math.round((it.amount||0)*0.5), it.localCurrency||'EUR'), 0);
   })();
   // Spent/Used = actually reimbursed via approved or paid claims
   const totalClaimed = (() => {
-    const partnerNames = new Set(dashPartners.map((p) => p.name));
+    const partnerNames = new Set(dashPartners.map(p => p.name));
     return claims
-      .filter(
-        (c) =>
-          partnerNames.has(c.partner) && ['approved', 'paid'].includes(c.status)
-      )
-      .reduce((s, c) => s + toUSD(c.claimAmount || 0, c.currency || 'EUR'), 0);
+      .filter(c => partnerNames.has(c.partner) && ['approved','paid'].includes(c.status))
+      .reduce((s, c) => s + toUSD(c.claimAmount||0, c.currency||'EUR'), 0);
   })();
   const totalSpent = dashPartners.reduce((s, p) => s + p.spent, 0);
   const totalPend = dashPartners.reduce((s, p) => s + p.pending, 0);
@@ -11599,7 +9710,7 @@ export default function App() {
     .filter((c) => c.status === 'submitted')
     .reduce((s, c) => s + (c.claimAmount || 0), 0);
   const totalClaimsInReview = dashClaims
-    .filter((c) => ['marketing_review', 'finance_review'].includes(c.status))
+    .filter((c) => ['marketing_review','finance_review'].includes(c.status))
     .reduce((s, c) => s + (c.claimAmount || 0), 0);
   const totalClaimsPaid = dashClaims
     .filter((c) => c.status === 'paid')
@@ -11670,14 +9781,7 @@ export default function App() {
           !filterReqStatus.some((s) => {
             if (s === 'bp_sent') return r.partnerNotified;
             // Request-level statuses: only check r.status
-            const reqLevelStatuses = [
-              'request_submitted',
-              'approved',
-              'sent_for_signature',
-              'signed',
-              'po_raised',
-              'rejected',
-            ];
+            const reqLevelStatuses = ['request_submitted','approved','sent_for_signature','signed','po_raised','rejected'];
             if (reqLevelStatuses.includes(s)) return r.status === s;
             // Item-level statuses (cancelled_by_partner, postponed): check items
             return (r.items || []).some((it) => it.itemStatus === s);
@@ -11767,47 +9871,21 @@ export default function App() {
   ];
 
   // DB loading screen
-  if (!dbLoaded)
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: '#00008b',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          gap: 16,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "'Syne',sans-serif",
-            fontWeight: 800,
-            fontSize: 28,
-            color: '#60aaff',
-          }}
-        >
-          MDF Manager
+  if (!dbLoaded) return (
+    <div style={{ minHeight: '100vh', background: '#00008b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 28, color: '#60aaff' }}>MDF Manager</div>
+      {dbError ? (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>Database connection failed — using local data</div>
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{dbError}</div>
         </div>
-        {dbError ? (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>
-              Database connection failed — using local data
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>
-              {dbError}
-            </div>
-          </div>
-        ) : (
-          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
-            Connecting to database...
-          </div>
-        )}
-      </div>
-    );
+      ) : (
+        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>Connecting to database...</div>
+      )}
+    </div>
+  );
 
-  if (!loggedIn)
+    if (!loggedIn)
     return (
       <div
         style={{
@@ -12077,8 +10155,7 @@ export default function App() {
                   textOverflow: 'ellipsis',
                 }}
               >
-                <span style={{ opacity: 0.6, marginRight: 5 }}>👤</span>
-                {currentUser}
+                <span style={{ opacity: 0.6, marginRight: 5 }}>👤</span>{currentUser}
               </div>
               <button
                 onClick={() => setIsDark((d) => !d)}
@@ -12251,38 +10328,13 @@ export default function App() {
       >
         {/* FX rate warning banner */}
         {Object.keys(allRates).length === 0 && !rateLoading && (
-          <div
-            style={{
-              background: C.warning + '18',
-              borderBottom: `1px solid ${C.warning}30`,
-              padding: '6px 20px',
-              fontSize: 12,
-              color: C.warning,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              flexShrink: 0,
-            }}
-          >
+          <div style={{ background: C.warning + '18', borderBottom: `1px solid ${C.warning}30`, padding: '6px 20px', fontSize: 12, color: C.warning, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <span>&#9888;</span>
-            <span>
-              Exchange rates unavailable — USD values are estimated. Check your
-              connection.
-            </span>
+            <span>Exchange rates unavailable — USD values are estimated. Check your connection.</span>
           </div>
         )}
         {rateTs && Object.keys(allRates).length > 0 && (
-          <div
-            style={{
-              background: C.faint,
-              borderBottom: `1px solid ${C.border}20`,
-              padding: '3px 20px',
-              fontSize: 10,
-              color: C.muted,
-              flexShrink: 0,
-            }}
-          >
+          <div style={{ background: C.faint, borderBottom: `1px solid ${C.border}20`, padding: '3px 20px', fontSize: 10, color: C.muted, flexShrink: 0 }}>
             Rates updated: {rateTs}
           </div>
         )}
@@ -12441,20 +10493,10 @@ export default function App() {
                   options={PARTNER_TYPES}
                 />
                 <MultiSelect
-                  value={
-                    dashPAM === 'All'
-                      ? []
-                      : Array.isArray(dashPAM)
-                      ? dashPAM
-                      : [dashPAM]
-                  }
+                  value={dashPAM === 'All' ? [] : Array.isArray(dashPAM) ? dashPAM : [dashPAM]}
                   onChange={(v) => setDashPAM(v.length === 0 ? 'All' : v)}
                   placeholder="All PAMs"
-                  options={[
-                    ...new Set(
-                      partners.map((p) => p.accountManager).filter(Boolean)
-                    ),
-                  ].sort()}
+                  options={[...new Set(partners.map(p => p.accountManager).filter(Boolean))].sort()}
                 />
                 <MultiSelect
                   value={dashPartner}
@@ -12504,41 +10546,27 @@ export default function App() {
               {[
                 {
                   label: 'Available',
-                  val: `USD ${Math.round(totalAlloc * rate).toLocaleString(
-                    'en-US'
-                  )}`,
+                  val: `USD ${Math.round(totalAlloc * rate).toLocaleString('en-US')}`,
                   color: C.accent,
                   sub: `Total budget · ${dashPartners.length} partners`,
                 },
                 {
                   label: 'Pending',
-                  val: `USD ${Math.round(totalPending * rate).toLocaleString(
-                    'en-US'
-                  )}`,
+                  val: `USD ${Math.round(totalPending * rate).toLocaleString('en-US')}`,
                   color: C.warning,
-                  sub: `Signed · awaiting PO · ${Math.round(
-                    (totalPending / (totalAlloc || 1)) * 100
-                  )}% of budget`,
+                  sub: `Signed · awaiting PO · ${Math.round((totalPending / (totalAlloc || 1)) * 100)}% of budget`,
                 },
                 {
                   label: 'Allocated',
-                  val: `USD ${Math.round(totalAllocated * rate).toLocaleString(
-                    'en-US'
-                  )}`,
+                  val: `USD ${Math.round(totalAllocated * rate).toLocaleString('en-US')}`,
                   color: C.purple,
-                  sub: `PO raised · ${Math.round(
-                    (totalAllocated / (totalAlloc || 1)) * 100
-                  )}% of budget`,
+                  sub: `PO raised · ${Math.round((totalAllocated / (totalAlloc || 1)) * 100)}% of budget`,
                 },
                 {
                   label: 'Spent / Used',
-                  val: `USD ${Math.round(totalClaimed * rate).toLocaleString(
-                    'en-US'
-                  )}`,
+                  val: `USD ${Math.round(totalClaimed * rate).toLocaleString('en-US')}`,
                   color: C.success,
-                  sub: `Approved & paid claims · ${Math.round(
-                    (totalClaimed / (totalAlloc || 1)) * 100
-                  )}% of budget`,
+                  sub: `Approved & paid claims · ${Math.round((totalClaimed / (totalAlloc || 1)) * 100)}% of budget`,
                 },
               ].map((k) => (
                 <div
@@ -12623,13 +10651,7 @@ export default function App() {
                     totalClaimsSubmitted * rate
                   ).toLocaleString('en-US')}`,
                   color: C.cyan || '#06b6d4',
-                  sub: `${
-                    dashClaims.filter((c) => c.status === 'submitted').length
-                  } new · ${
-                    dashClaims.filter((c) =>
-                      ['marketing_review', 'finance_review'].includes(c.status)
-                    ).length
-                  } in review`,
+                  sub: `${dashClaims.filter(c => c.status === 'submitted').length} new · ${dashClaims.filter(c => ['marketing_review','finance_review'].includes(c.status)).length} in review`,
                 },
                 {
                   label: 'Claims Approved / Paid',
@@ -12706,175 +10728,49 @@ export default function App() {
             {(() => {
               const ROI_TARGET = 30;
               // Sum pipeline for all campaigns belonging to dashPartners
-              const partnerNames = new Set(dashPartners.map((p) => p.name));
+              const partnerNames = new Set(dashPartners.map(p => p.name));
               const allItems = requests
-                .filter((r) => partnerNames.has(r.partner))
-                .flatMap((r) => r.items || []);
-              const totalPipeline = allItems.reduce(
-                (s, it) =>
-                  s + (pipelineData[it.campaignId] || pipelineData[it.id] || 0),
-                0
-              );
+                .filter(r => partnerNames.has(r.partner))
+                .flatMap(r => r.items || []);
+              const totalPipeline = allItems.reduce((s, it) =>
+                s + (pipelineData[it.campaignId] || pipelineData[it.id] || 0), 0);
               // Use totalAllocated (signed/PO raised) as the MDF invested base
               // Falls back to totalAlloc (partner budget) if nothing signed yet
               // ROI base = PO raised (real commitment). Falls back to total budget if no PO yet.
-              const totalMDFInvested =
-                totalAllocated > 0
-                  ? totalAllocated
-                  : totalPending > 0
-                  ? totalPending
-                  : totalAlloc;
+              const totalMDFInvested = totalAllocated > 0 ? totalAllocated : (totalPending > 0 ? totalPending : totalAlloc);
               const targetPipeline = totalMDFInvested * ROI_TARGET;
-              const actualRatio =
-                totalMDFInvested > 0 ? totalPipeline / totalMDFInvested : 0;
-              const roiColor =
-                actualRatio >= ROI_TARGET
-                  ? '#10b981'
-                  : actualRatio >= ROI_TARGET * 0.7
-                  ? C.warning
-                  : C.danger;
+              const actualRatio = totalMDFInvested > 0 ? totalPipeline / totalMDFInvested : 0;
+              const roiColor = actualRatio >= ROI_TARGET ? '#10b981' : actualRatio >= ROI_TARGET * 0.7 ? C.warning : C.danger;
               const pipelineUSD = Math.round(totalPipeline);
               const targetUSD = Math.round(targetPipeline);
               return (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3,1fr)',
-                    gap: 14,
-                    marginBottom: 14,
-                  }}
-                >
-                  <div
-                    style={{
-                      background: C.surface,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: 14,
-                      padding: '16px 20px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: C.muted,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        marginBottom: 8,
-                      }}
-                    >
-                      Pipeline Target (1:30)
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: 22,
-                        fontWeight: 800,
-                        color: C.accent,
-                      }}
-                    >
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:14 }}>
+                  <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:'16px 20px' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:C.muted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Pipeline Target (1:30)</div>
+                    <div style={{ fontFamily:'monospace', fontSize:22, fontWeight:800, color:C.accent }}>
                       USD {targetUSD.toLocaleString('en-US')}
                     </div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-                      {totalMDFInvested > 0
-                        ? `Based on USD ${Math.round(
-                            totalMDFInvested
-                          ).toLocaleString('en-US')} MDF ${
-                            totalAllocated > 0
-                              ? 'allocated (PO raised)'
-                              : totalPending > 0
-                              ? 'pending (signed)'
-                              : 'budgeted'
-                          }`
-                        : 'No MDF invested yet'}
+                    <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>
+                      {totalMDFInvested > 0 ? `Based on USD ${Math.round(totalMDFInvested).toLocaleString('en-US')} MDF ${totalAllocated > 0 ? 'allocated (PO raised)' : totalPending > 0 ? 'pending (signed)' : 'budgeted'}` : 'No MDF invested yet'}
                     </div>
                   </div>
-                  <div
-                    style={{
-                      background: C.surface,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: 14,
-                      padding: '16px 20px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: C.muted,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        marginBottom: 8,
-                      }}
-                    >
-                      Pipeline Generated
+                  <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:'16px 20px' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:C.muted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Pipeline Generated</div>
+                    <div style={{ fontFamily:'monospace', fontSize:22, fontWeight:800, color:roiColor }}>
+                      {totalPipeline > 0 ? `USD ${pipelineUSD.toLocaleString('en-US')}` : '— No data yet'}
                     </div>
-                    <div
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: 22,
-                        fontWeight: 800,
-                        color: roiColor,
-                      }}
-                    >
-                      {totalPipeline > 0
-                        ? `USD ${pipelineUSD.toLocaleString('en-US')}`
-                        : '— No data yet'}
-                    </div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-                      {totalPipeline > 0
-                        ? `${
-                            allItems.filter((it) => pipelineData[it.campaignId])
-                              .length
-                          } campaigns reporting`
-                        : 'Import pipeline via MDF Overview tab'}
+                    <div style={{ fontSize:11, color:C.muted, marginTop:4 }}>
+                      {totalPipeline > 0 ? `${allItems.filter(it => pipelineData[it.campaignId]).length} campaigns reporting` : 'Import pipeline via MDF Overview tab'}
                     </div>
                   </div>
-                  <div
-                    style={{
-                      background: C.surface,
-                      border: `2px solid ${roiColor}40`,
-                      borderRadius: 14,
-                      padding: '16px 20px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: C.muted,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        marginBottom: 8,
-                      }}
-                    >
-                      ROI Ratio
+                  <div style={{ background:C.surface, border:`2px solid ${roiColor}40`, borderRadius:14, padding:'16px 20px' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:C.muted, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>ROI Ratio</div>
+                    <div style={{ fontFamily:'monospace', fontSize:22, fontWeight:800, color:roiColor }}>
+                      {totalPipeline > 0 ? `1 : ${Math.round(actualRatio)}` : '—'}
                     </div>
-                    <div
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: 22,
-                        fontWeight: 800,
-                        color: roiColor,
-                      }}
-                    >
+                    <div style={{ fontSize:11, marginTop:4, fontWeight:600, color:roiColor }}>
                       {totalPipeline > 0
-                        ? `1 : ${Math.round(actualRatio)}`
-                        : '—'}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        marginTop: 4,
-                        fontWeight: 600,
-                        color: roiColor,
-                      }}
-                    >
-                      {totalPipeline > 0
-                        ? actualRatio >= ROI_TARGET
-                          ? '✓ Above 1:30 target'
-                          : `${((actualRatio / ROI_TARGET) * 100).toFixed(
-                              0
-                            )}% of 1:30 target`
+                        ? actualRatio >= ROI_TARGET ? '✓ Above 1:30 target' : `${((actualRatio/ROI_TARGET)*100).toFixed(0)}% of 1:30 target`
                         : 'Target: 1:30'}
                     </div>
                   </div>
@@ -12914,8 +10810,7 @@ export default function App() {
                   };
                   const macroData = ALL_MACROS.map((m) => {
                     const mp = dashPartners.filter((p) => p.region === m);
-                    const conv = (n) =>
-                      currency === 'USD' ? Math.round(n * rate) : n;
+                    const conv = (n) => currency === 'USD' ? Math.round(n * rate) : n;
                     return {
                       name: m,
                       allocated: conv(mp.reduce((s, p) => s + p.allocated, 0)),
@@ -12965,23 +10860,16 @@ export default function App() {
                         style={{ flexShrink: 0 }}
                       >
                         {slices.length === 1 ? (
-                          <circle
-                            cx={CX}
-                            cy={CY}
-                            r={R}
-                            fill={slices[0].color}
-                          />
-                        ) : (
-                          slices.map(
-                            (s, i) =>
-                              s.sweep > 1 && (
-                                <path
-                                  key={i}
-                                  d={`M ${CX} ${CY} L ${s.s2.x} ${s.s2.y} A ${R} ${R} 0 ${s.large} 1 ${s.e.x} ${s.e.y} Z`}
-                                  fill={s.color}
-                                />
-                              )
-                          )
+                          <circle cx={CX} cy={CY} r={R} fill={slices[0].color} />
+                        ) : slices.map(
+                          (s, i) =>
+                            s.sweep > 1 && (
+                              <path
+                                key={i}
+                                d={`M ${CX} ${CY} L ${s.s2.x} ${s.s2.y} A ${R} ${R} 0 ${s.large} 1 ${s.e.x} ${s.e.y} Z`}
+                                fill={s.color}
+                              />
+                            )
                         )}
                         {slices.map(
                           (s, i) =>
@@ -13783,142 +11671,49 @@ export default function App() {
             {/* ── Partner Performance: Top & At Risk ── */}
             {(() => {
               const ROI_TARGET = 30;
-              const partnerPerf = dashPartners.map((p) => {
+              const partnerPerf = dashPartners.map(p => {
                 const partnerItems = requests
-                  .filter((r) => r.partner === p.name)
-                  .flatMap((r) => r.items || []);
-                const totalPipeline = partnerItems.reduce(
-                  (s, it) =>
-                    s +
-                    (pipelineData[it.campaignId] || pipelineData[it.id] || 0),
-                  0
-                );
+                  .filter(r => r.partner === p.name)
+                  .flatMap(r => r.items || []);
+                const totalPipeline = partnerItems.reduce((s, it) =>
+                  s + (pipelineData[it.campaignId] || pipelineData[it.id] || 0), 0);
                 const mdfAllocated = requests
-                  .filter(
-                    (r) =>
-                      r.partner === p.name &&
-                      ['signed', 'po_raised'].includes(r.status)
-                  )
-                  .flatMap((r) => r.items || [])
+                  .filter(r => r.partner === p.name && ['signed','po_raised'].includes(r.status))
+                  .flatMap(r => r.items || [])
                   .reduce((s, it) => s + Number(it.mdfRequest || 0), 0);
                 const mdfBase = mdfAllocated > 0 ? mdfAllocated : p.allocated;
                 const ratio = mdfBase > 0 ? totalPipeline / mdfBase : 0;
-                return {
-                  ...p,
-                  totalPipeline,
-                  mdfBase,
-                  ratio,
-                  hasPipeline: totalPipeline > 0,
-                  hasCommitted: mdfAllocated > 0,
-                };
+                return { ...p, totalPipeline, mdfBase, ratio, hasPipeline: totalPipeline > 0, hasCommitted: mdfAllocated > 0 };
               });
-              const topPerformers = [...partnerPerf]
-                .filter((p) => p.hasPipeline)
-                .sort((a, b) => b.ratio - a.ratio)
-                .slice(0, 5);
-              const atRisk = [...partnerPerf]
-                .filter((p) => p.hasCommitted && p.ratio < ROI_TARGET * 0.5)
-                .sort((a, b) => b.mdfBase - a.mdfBase)
-                .slice(0, 5);
-              if (topPerformers.length === 0 && atRisk.length === 0)
-                return null;
+              const topPerformers = [...partnerPerf].filter(p => p.hasPipeline).sort((a,b) => b.ratio - a.ratio).slice(0,5);
+              const atRisk = [...partnerPerf].filter(p => p.hasCommitted && p.ratio < ROI_TARGET * 0.5).sort((a,b) => b.mdfBase - a.mdfBase).slice(0,5);
+              if (topPerformers.length === 0 && atRisk.length === 0) return null;
               return (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 14,
-                    marginTop: 14,
-                  }}
-                >
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginTop:14 }}>
                   {topPerformers.length > 0 && (
-                    <div
-                      style={{
-                        background: C.surface,
-                        border: `1px solid ${C.border}`,
-                        borderRadius: 14,
-                        padding: '16px 20px',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          marginBottom: 14,
-                        }}
-                      >
-                        <span style={{ fontSize: 18 }}>🏆</span>
-                        <span
-                          style={{
-                            fontFamily: "'Syne',sans-serif",
-                            fontWeight: 800,
-                            fontSize: 14,
-                          }}
-                        >
-                          Top Performers
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: C.muted,
-                            marginLeft: 'auto',
-                          }}
-                        >
-                          by ROI ratio
-                        </span>
+                    <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:'16px 20px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+                        <span style={{ fontSize:18 }}>🏆</span>
+                        <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:14 }}>Top Performers</span>
+                        <span style={{ fontSize:10, color:C.muted, marginLeft:'auto' }}>by ROI ratio</span>
                       </div>
-                      {topPerformers.map((p) => (
-                        <DashPartnerRow key={p.name} p={p} />
-                      ))}
+                      {topPerformers.map(p => <DashPartnerRow key={p.name} p={p} />)}
                     </div>
                   )}
                   {atRisk.length > 0 && (
-                    <div
-                      style={{
-                        background: C.surface,
-                        border: `1px solid #ef444430`,
-                        borderRadius: 14,
-                        padding: '16px 20px',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          marginBottom: 14,
-                        }}
-                      >
-                        <span style={{ fontSize: 18 }}>⚠️</span>
-                        <span
-                          style={{
-                            fontFamily: "'Syne',sans-serif",
-                            fontWeight: 800,
-                            fontSize: 14,
-                            color: '#ef4444',
-                          }}
-                        >
-                          At Risk
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: C.muted,
-                            marginLeft: 'auto',
-                          }}
-                        >
-                          MDF committed · low pipeline
-                        </span>
+                    <div style={{ background:C.surface, border:`1px solid #ef444430`, borderRadius:14, padding:'16px 20px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+                        <span style={{ fontSize:18 }}>⚠️</span>
+                        <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:14, color:'#ef4444' }}>At Risk</span>
+                        <span style={{ fontSize:10, color:C.muted, marginLeft:'auto' }}>MDF committed · low pipeline</span>
                       </div>
-                      {atRisk.map((p) => (
-                        <DashPartnerRow key={p.name} p={p} />
-                      ))}
+                      {atRisk.map(p => <DashPartnerRow key={p.name} p={p} />)}
                     </div>
                   )}
                 </div>
               );
             })()}
+
           </div>
         )}
 
@@ -13945,17 +11740,12 @@ export default function App() {
               isDark={isDark}
               onImportPipeline={() => setShowPipelineImport(true)}
               onSavePipeline={(campaignId, val) => {
-                setPipelineData((prev) => {
+                setPipelineData(prev => {
                   const next = { ...prev, [campaignId]: val };
                   // Persist to localStorage
                   try {
-                    const cached = JSON.parse(
-                      localStorage.getItem('mdf_manager_data') || '{}'
-                    );
-                    localStorage.setItem(
-                      'mdf_manager_data',
-                      JSON.stringify({ ...cached, pipelineData: next })
-                    );
+                    const cached = JSON.parse(localStorage.getItem('mdf_manager_data') || '{}');
+                    localStorage.setItem('mdf_manager_data', JSON.stringify({ ...cached, pipelineData: next }));
                   } catch {}
                   return next;
                 });
@@ -13976,31 +11766,24 @@ export default function App() {
               }
               onSaveOverride={(rowKey, field, val) => {
                 // rowKey is item.id - find the request containing this item and update it
-                setRequests((prev) =>
-                  prev.map((r) => ({
-                    ...r,
-                    items: (r.items || []).map((it) =>
-                      (it.id || `${r.id}-${r.items.indexOf(it)}`) === rowKey
-                        ? { ...it, [field]: val }
-                        : it
-                    ),
-                  }))
-                );
+                setRequests(prev => prev.map(r => ({
+                  ...r,
+                  items: (r.items || []).map(it =>
+                    (it.id || `${r.id}-${r.items.indexOf(it)}`) === rowKey
+                      ? { ...it, [field]: val }
+                      : it
+                  ),
+                })));
                 // BUG-005 FIX: when Campaign ID is entered, migrate any pipeline stored
                 // under rowKey to the new campaignId key so they stay linked
                 if (field === 'campaignId' && val) {
-                  setPipelineData((prev) => {
+                  setPipelineData(prev => {
                     if (prev[rowKey] !== undefined && prev[val] === undefined) {
                       const next = { ...prev, [val]: prev[rowKey] };
                       delete next[rowKey];
                       try {
-                        const cached = JSON.parse(
-                          localStorage.getItem('mdf_manager_data') || '{}'
-                        );
-                        localStorage.setItem(
-                          'mdf_manager_data',
-                          JSON.stringify({ ...cached, pipelineData: next })
-                        );
+                        const cached = JSON.parse(localStorage.getItem('mdf_manager_data') || '{}');
+                        localStorage.setItem('mdf_manager_data', JSON.stringify({ ...cached, pipelineData: next }));
                       } catch {}
                       return next;
                     }
@@ -14251,16 +12034,12 @@ export default function App() {
                 placeholder="All Types"
                 options={PARTNER_TYPES}
               />
-              <MultiSelect
-                value={filterPAM}
-                onChange={setFilterPAM}
-                placeholder="All PAMs"
-                options={[
-                  ...new Set(
-                    partners.map((p) => p.accountManager).filter(Boolean)
-                  ),
-                ].sort()}
-              />
+               <MultiSelect
+                 value={filterPAM}
+                 onChange={setFilterPAM}
+                 placeholder="All PAMs"
+                 options={[...new Set(partners.map(p => p.accountManager).filter(Boolean))].sort()}
+               />
               <MultiSelect
                 value={filterPartnerReqStatus}
                 onChange={setFilterPartnerReqStatus}
@@ -14660,14 +12439,11 @@ export default function App() {
                               textAlign: 'right',
                               fontFamily: 'monospace',
                               fontSize: 12,
-                              color:
-                                p.pipeline > 0 ? C.cyan || C.accent : C.muted,
+                              color: p.pipeline > 0 ? (C.cyan || C.accent) : C.muted,
                             }}
                           >
                             {p.pipeline > 0
-                              ? `USD ${Math.round(p.pipeline).toLocaleString(
-                                  'en-US'
-                                )}`
+                              ? `USD ${Math.round(p.pipeline).toLocaleString('en-US')}`
                               : '-'}
                           </td>
                           <td
@@ -14681,33 +12457,13 @@ export default function App() {
                               (() => {
                                 const target = totalReq * 30;
                                 const pipe = p.pipeline || 0;
-                                const ratio =
-                                  totalReq > 0 && pipe > 0
-                                    ? pipe / totalReq
-                                    : null;
+                                const ratio = totalReq > 0 && pipe > 0 ? pipe / totalReq : null;
                                 const onTarget = ratio !== null && ratio >= 30;
                                 return (
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      color:
-                                        ratio !== null
-                                          ? onTarget
-                                            ? C.success
-                                            : C.danger
-                                          : C.muted,
-                                    }}
-                                  >
-                                    {ratio !== null
-                                      ? `1:${Math.round(ratio)}`
-                                      : '—'}{' '}
-                                    <span
-                                      style={{
-                                        color: C.muted,
-                                        fontWeight: 400,
-                                      }}
-                                    >
-                                      / {target.toLocaleString('en-US')}
+                                  <span style={{ fontSize: 11, color: ratio !== null ? (onTarget ? C.success : C.danger) : C.muted }}>
+                                    {ratio !== null ? `1:${Math.round(ratio)}` : '—'}{' '}
+                                    <span style={{ color: C.muted, fontWeight: 400 }}>
+                                      / {(target).toLocaleString('en-US')}
                                     </span>
                                   </span>
                                 );
@@ -14716,78 +12472,32 @@ export default function App() {
                               <span style={{ color: C.muted }}>-</span>
                             )}
                           </td>
-                          <td
-                            style={{
-                              padding: '8px 10px',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
+                          <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', gap: 6 }}>
                               <button
                                 onClick={() => setEditPartner(p)}
-                                style={{
-                                  background: C.accent + '18',
-                                  color: C.accent,
-                                  border: `1px solid ${C.accent}30`,
-                                  borderRadius: 7,
-                                  padding: '4px 10px',
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                }}
+                                style={{ background: C.accent + '18', color: C.accent, border: `1px solid ${C.accent}30`, borderRadius: 7, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => {
-                                  if (
-                                    window.confirm(
+                                  if (window.confirm(
                                       (() => {
-                                        const aReqs = requests.filter(
-                                          (r) =>
-                                            r.partner === p.name &&
-                                            ![
-                                              'rejected',
-                                              'cancelled_by_partner',
-                                            ].includes(r.status)
-                                        ).length;
-                                        const aClaims = claims.filter(
-                                          (c) =>
-                                            c.partner === p.name &&
-                                            !['rejected', 'cancelled'].includes(
-                                              c.status
-                                            )
-                                        ).length;
+                                        const aReqs = requests.filter(r=>r.partner===p.name&&!['rejected','cancelled_by_partner'].includes(r.status)).length;
+                                        const aClaims = claims.filter(c=>c.partner===p.name&&!['rejected','cancelled'].includes(c.status)).length;
                                         return aReqs > 0 || aClaims > 0
                                           ? `WARNING: ${p.name} has ${aReqs} active request(s) and ${aClaims} active claim(s). Deleting will leave orphan records. Continue anyway?`
                                           : `Delete ${p.name}? This cannot be undone.`;
                                       })()
-                                    )
-                                  ) {
-                                    setPartners((prev) =>
-                                      prev.filter((x) => x.id !== p.id)
-                                    );
-                                    addHistory(
-                                      `Partner ${p.name} deleted`,
-                                      p.id,
-                                      'edit'
-                                    );
+                                    )) {
+                                    setPartners(prev => prev.filter(x => x.id !== p.id));
+                                    addHistory(`Partner ${p.name} deleted`, p.id, 'edit');
                                     toast(`${p.name} removed`);
-                                    supa
-                                      .delete('partners', 'id', p.id)
-                                      .catch(() => {});
+                                    supa.delete('partners', 'id', p.id).catch(() => {});
                                   }
                                 }}
-                                style={{
-                                  background: C.danger + '18',
-                                  color: C.danger,
-                                  border: `1px solid ${C.danger}30`,
-                                  borderRadius: 7,
-                                  padding: '4px 10px',
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                }}
+                                style={{ background: C.danger + '18', color: C.danger, border: `1px solid ${C.danger}30`, borderRadius: 7, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
                               >
                                 Delete
                               </button>
@@ -14899,16 +12609,11 @@ export default function App() {
                                 fontFamily: 'monospace',
                                 fontSize: 12,
                                 fontWeight: 800,
-                                color:
-                                  totalPipeline2 > 0
-                                    ? C.cyan || C.accent
-                                    : C.muted,
+                                color: totalPipeline2 > 0 ? (C.cyan || C.accent) : C.muted,
                               }}
                             >
                               {totalPipeline2 > 0
-                                ? `USD ${Math.round(
-                                    totalPipeline2
-                                  ).toLocaleString('en-US')}`
+                                ? `USD ${Math.round(totalPipeline2).toLocaleString('en-US')}`
                                 : '-'}
                             </td>
                             <td
@@ -14921,23 +12626,9 @@ export default function App() {
                               }}
                             >
                               {totalPipeline2 > 0 ? (
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    color:
-                                      totalPipeline2 >= grandTotal * 30
-                                        ? C.success
-                                        : C.danger,
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  1:
-                                  {Math.round(
-                                    totalPipeline2 / (grandTotal || 1)
-                                  )}{' '}
-                                  <span
-                                    style={{ color: C.muted, fontWeight: 400 }}
-                                  >
+                                <span style={{ fontSize: 11, color: totalPipeline2 >= grandTotal * 30 ? C.success : C.danger, fontWeight: 700 }}>
+                                  1:{Math.round(totalPipeline2 / (grandTotal || 1))}{' '}
+                                  <span style={{ color: C.muted, fontWeight: 400 }}>
                                     (target 1:30)
                                   </span>
                                 </span>
@@ -14968,6 +12659,7 @@ export default function App() {
               height: '100%',
             }}
           >
+
             <div
               style={{
                 display: 'flex',
@@ -15354,642 +13046,229 @@ export default function App() {
                   <tbody>
                     {filteredR.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={13}
-                          style={{
-                            padding: 40,
-                            textAlign: 'center',
-                            color: C.muted,
-                          }}
-                        >
+                        <td colSpan={13} style={{ padding: 40, textAlign: 'center', color: C.muted }}>
                           No requests found
                         </td>
                       </tr>
                     )}
-                    {filteredR.length > 0 &&
-                      (() => {
-                        const statusColors = {
-                          request_submitted: C.warning,
-                          approved: C.success,
-                          sent_for_signature: C.purple,
-                          signed: C.cyan || '#06b6d4',
-                          po_raised: C.accent,
-                          rejected: C.danger,
-                        };
-                        const statusLabels = {
-                          request_submitted: 'Submitted',
-                          approved: 'Approved',
-                          sent_for_signature: 'Sent for Sign.',
-                          signed: 'Signed',
-                          po_raised: 'PO Raised',
-                          rejected: 'Rejected',
-                        };
+                    {filteredR.length > 0 && (() => {
+                      const statusColors = {
+                        request_submitted: C.warning,
+                        approved: C.success,
+                        sent_for_signature: C.purple,
+                        signed: C.cyan || '#06b6d4',
+                        po_raised: C.accent,
+                        rejected: C.danger,
+                      };
+                      const statusLabels = {
+                        request_submitted: 'Submitted',
+                        approved: 'Approved',
+                        sent_for_signature: 'Sent for Sign.',
+                        signed: 'Signed',
+                        po_raised: 'PO Raised',
+                        rejected: 'Rejected',
+                      };
 
-                        // Split into needs-attention, in-progress, and completed
-                        const COMPLETED_STATUSES = [
-                          'po_raised',
-                          'rejected',
-                          'cancelled_by_partner',
-                        ];
-                        const needsAttention = sortedR.filter(
-                          (r) =>
-                            !COMPLETED_STATUSES.includes(r.status) &&
-                            (!r.assignedTo ||
-                              (r.items || []).some((it) =>
-                                ['cancelled_by_partner', 'postponed'].includes(
-                                  it.itemStatus
-                                )
-                              ))
-                        );
-                        const inProgress = sortedR.filter(
-                          (r) =>
-                            !COMPLETED_STATUSES.includes(r.status) &&
-                            r.assignedTo &&
-                            !(r.items || []).some((it) =>
-                              ['cancelled_by_partner', 'postponed'].includes(
-                                it.itemStatus
-                              )
-                            )
-                        );
-                        const completed = sortedR.filter((r) =>
-                          COMPLETED_STATUSES.includes(r.status)
-                        );
+                       // Split into needs-attention, in-progress, and completed
+                       const COMPLETED_STATUSES = ['po_raised', 'rejected', 'cancelled_by_partner'];
+                       const needsAttention = sortedR.filter(r =>
+                         !COMPLETED_STATUSES.includes(r.status) && (
+                           !r.assignedTo ||
+                           (r.items || []).some(it => ['cancelled_by_partner','postponed'].includes(it.itemStatus))
+                         )
+                       );
+                       const inProgress = sortedR.filter(r =>
+                         !COMPLETED_STATUSES.includes(r.status) &&
+                         r.assignedTo &&
+                         !(r.items || []).some(it => ['cancelled_by_partner','postponed'].includes(it.itemStatus))
+                       );
+                       const completed = sortedR.filter(r =>
+                         COMPLETED_STATUSES.includes(r.status)
+                       );
 
-                        const renderRows = (reqs, baseIdx) =>
-                          reqs.flatMap((r, rIdx) => {
-                            const partner =
-                              partners.find((p) => p.name === r.partner) || {};
-                            return (r.items || []).map((item, itemIdx) => {
-                              const i = baseIdx + rIdx * 10 + itemIdx;
-                              // Show request-level status when it has advanced beyond item approval
-                              const advancedStatuses = [
-                                'sent_for_signature',
-                                'signed',
-                                'po_raised',
-                                'rejected',
-                                'cancelled_by_partner',
-                              ];
-                              const itemStatus = advancedStatuses.includes(
-                                r.status
-                              )
-                                ? r.status
-                                : item.itemStatus || r.status;
-                              const sColor =
-                                statusColors[itemStatus] || C.muted;
-                              const mdfUSD = toUSD(
-                                item.mdfRequest ||
-                                  Math.round((item.amount || 0) * 0.5),
-                                item.localCurrency || 'EUR'
-                              );
-                              const isAlertItem =
-                                ['cancelled_by_partner', 'postponed'].includes(
-                                  itemStatus
-                                ) && !item.acknowledged;
-                              const isUnassigned = !r.assignedTo;
-                              const rowBg = isAlertItem
-                                ? `${C.danger}08`
-                                : isUnassigned
-                                ? `${C.warning}08`
-                                : i % 2 === 0
-                                ? C.faint
-                                : C.surface;
-                              const rowBorderLeft = isAlertItem
-                                ? `3px solid ${C.danger}`
-                                : isUnassigned
-                                ? `3px solid ${C.warning}`
-                                : '3px solid transparent';
-                              const rowHoverBg = isAlertItem
-                                ? `${C.danger}15`
-                                : isUnassigned
-                                ? `${C.warning}15`
-                                : C.accentGlow;
-                              return (
-                                <tr
-                                  key={item.id}
-                                  onClick={() => setSelReq(r)}
-                                  style={{
-                                    borderBottom: `1px solid ${C.border}20`,
-                                    background: rowBg,
-                                    borderLeft: rowBorderLeft,
-                                    cursor: 'pointer',
-                                    transition: 'background 0.1s',
-                                  }}
-                                  onMouseEnter={(e) =>
-                                    (e.currentTarget.style.background =
-                                      rowHoverBg)
-                                  }
-                                  onMouseLeave={(e) =>
-                                    (e.currentTarget.style.background = rowBg)
-                                  }
-                                >
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      fontFamily: 'monospace',
-                                      fontSize: 11,
-                                      color: C.accent,
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {r.id}
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      whiteSpace: 'nowrap',
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    {r.partner}
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      whiteSpace: 'nowrap',
-                                      color: C.muted,
-                                      fontSize: 11,
-                                    }}
-                                  >
-                                    {partner.region || '-'}
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {/* CMM assignment - dropdown for unassigned, badge for assigned */}
-                                    {!r.assignedTo ? (
-                                      <select
-                                        onClick={(e) => e.stopPropagation()}
-                                        value=""
-                                        onChange={(e) => {
-                                          if (!e.target.value) return;
-                                          const cmm = e.target.value;
-                                          setRequests((prev) => {
-                                            const next = prev.map((req) =>
-                                              req.id !== r.id
-                                                ? req
-                                                : {
-                                                    ...req,
-                                                    assignedTo: cmm,
-                                                    items: req.items.map(
-                                                      (it) => ({
-                                                        ...it,
-                                                        assignedTo: cmm,
-                                                      })
-                                                    ),
-                                                  }
-                                            );
-                                            const updated = next.find(
-                                              (req) => req.id === r.id
-                                            );
-                                            if (updated)
-                                              dbSaveRequest(updated).catch(
-                                                () => {}
-                                              );
-                                            return next;
-                                          });
-                                          addHistory(
-                                            `${r.id} assigned to ${cmm}`,
-                                            r.id,
-                                            'edit'
-                                          );
-                                          toast(`Assigned to ${cmm}`);
-                                        }}
-                                        style={{
-                                          background: C.warning + '20',
-                                          border: `1px solid ${C.warning}`,
-                                          color: C.warning,
-                                          borderRadius: 6,
-                                          padding: '3px 8px',
-                                          fontSize: 11,
-                                          fontWeight: 700,
-                                          cursor: 'pointer',
-                                        }}
-                                      >
-                                        <option value="">Assign CMM...</option>
-                                        {TEAM_MEMBERS.map((m) => (
-                                          <option key={m} value={m}>
-                                            {m}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    ) : (
-                                      (() => {
-                                        const col =
-                                          r.assignedTo === 'Decio A.'
-                                            ? C.accent
-                                            : r.assignedTo === 'Kaila'
-                                            ? C.success
-                                            : C.purple;
-                                        return (
-                                          <span
-                                            style={{
-                                              background: col + '20',
-                                              color: col,
-                                              border: `1px solid ${col}40`,
-                                              borderRadius: 20,
-                                              padding: '2px 10px',
-                                              fontSize: 11,
-                                              fontWeight: 700,
-                                            }}
-                                          >
-                                            {r.assignedTo}
-                                          </span>
+                      const renderRows = (reqs, baseIdx) => reqs.flatMap((r, rIdx) => {
+                        const partner = partners.find((p) => p.name === r.partner) || {};
+                        return (r.items || []).map((item, itemIdx) => {
+                          const i = baseIdx + rIdx * 10 + itemIdx;
+                          // Show request-level status when it has advanced beyond item approval
+                          const advancedStatuses = ['sent_for_signature','signed','po_raised','rejected','cancelled_by_partner'];
+                          const itemStatus = advancedStatuses.includes(r.status)
+                            ? r.status
+                            : (item.itemStatus || r.status);
+                          const sColor = statusColors[itemStatus] || C.muted;
+                          const mdfUSD = toUSD(
+                            item.mdfRequest || Math.round((item.amount || 0) * 0.5),
+                            item.localCurrency || 'EUR'
+                          );
+                          const isAlertItem = ['cancelled_by_partner','postponed'].includes(itemStatus) && !item.acknowledged;
+                          const isUnassigned = !r.assignedTo;
+                          const rowBg = isAlertItem ? `${C.danger}08`
+                            : isUnassigned ? `${C.warning}08`
+                            : i % 2 === 0 ? C.faint : C.surface;
+                          const rowBorderLeft = isAlertItem ? `3px solid ${C.danger}`
+                            : isUnassigned ? `3px solid ${C.warning}`
+                            : '3px solid transparent';
+                          const rowHoverBg = isAlertItem ? `${C.danger}15`
+                            : isUnassigned ? `${C.warning}15`
+                            : C.accentGlow;
+                          return (
+                            <tr
+                              key={item.id}
+                              onClick={() => setSelReq(r)}
+                              style={{ borderBottom: `1px solid ${C.border}20`, background: rowBg, borderLeft: rowBorderLeft, cursor: 'pointer', transition: 'background 0.1s' }}
+                              onMouseEnter={e => e.currentTarget.style.background = rowHoverBg}
+                              onMouseLeave={e => e.currentTarget.style.background = rowBg}
+                            >
+                              <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: C.accent, whiteSpace: 'nowrap' }}>{r.id}</td>
+                              <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', fontWeight: 600 }}>{r.partner}</td>
+                              <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: C.muted, fontSize: 11 }}>{partner.region || '-'}</td>
+                              <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                                {/* CMM assignment - dropdown for unassigned, badge for assigned */}
+                                {!r.assignedTo ? (
+                                  <select
+                                    onClick={e => e.stopPropagation()}
+                                    value=""
+                                    onChange={e => {
+                                      if (!e.target.value) return;
+                                      const cmm = e.target.value;
+                                      setRequests(prev => {
+                                        const next = prev.map(req =>
+                                          req.id !== r.id ? req : {
+                                            ...req,
+                                            assignedTo: cmm,
+                                            items: req.items.map(it => ({ ...it, assignedTo: cmm })),
+                                          }
                                         );
-                                      })()
-                                    )}
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      whiteSpace: 'nowrap',
-                                      maxWidth: 180,
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
+                                        const updated = next.find(req => req.id === r.id);
+                                        if (updated) dbSaveRequest(updated).catch(() => {});
+                                        return next;
+                                      });
+                                      addHistory(`${r.id} assigned to ${cmm}`, r.id, 'edit');
+                                      toast(`Assigned to ${cmm}`);
                                     }}
-                                    title={item.title}
+                                    style={{ background: C.warning + '20', border: `1px solid ${C.warning}`, color: C.warning, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
                                   >
-                                    <div
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 5,
-                                      }}
-                                    >
-                                      <span
-                                        style={{
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                          whiteSpace: 'nowrap',
-                                        }}
-                                      >
-                                        {item.title || '-'}
+                                    <option value="">Assign CMM...</option>
+                                    {TEAM_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
+                                  </select>
+                                ) : (
+                                  (() => {
+                                    const col = r.assignedTo === 'Decio A.' ? C.accent : r.assignedTo === 'Kaila' ? C.success : C.purple;
+                                    return (
+                                      <span style={{ background: col + '20', color: col, border: `1px solid ${col}40`, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
+                                        {r.assignedTo}
                                       </span>
-                                    </div>
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      fontFamily: 'monospace',
-                                      fontSize: 11,
-                                      color: C.muted,
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {item.allocadiaId || '-'}
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      fontFamily: 'monospace',
-                                      fontSize: 11,
-                                      color: C.muted,
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {item.campaignId || '-'}
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      textAlign: 'right',
-                                      fontFamily: 'monospace',
-                                      fontSize: 11,
-                                      fontWeight: 700,
-                                      color: '#f59e0b',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >{`USD ${mdfUSD.toLocaleString(
-                                    'en-US'
-                                  )}`}</td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        flexWrap: 'wrap',
-                                      }}
-                                    >
-                                      <span
-                                        style={{
-                                          background: sColor + '18',
-                                          color: sColor,
-                                          border: `1px solid ${sColor}30`,
-                                          borderRadius: 6,
-                                          padding: '3px 8px',
-                                          fontSize: 10,
-                                          fontWeight: 700,
-                                        }}
-                                      >
-                                        {statusLabels[itemStatus] || itemStatus}
-                                      </span>
-                                      {r.partnerNotified &&
-                                        (r.status === 'signed' ||
-                                          r.status === 'po_raised') && (
-                                          <span
-                                            title={`Signed BP emailed to partner${
-                                              r.notifiedAt
-                                                ? ' on ' + r.notifiedAt
-                                                : ''
-                                            }`}
-                                            style={{
-                                              background: C.success + '18',
-                                              color: C.success,
-                                              border: `1px solid ${C.success}30`,
-                                              borderRadius: 6,
-                                              padding: '3px 8px',
-                                              fontSize: 9,
-                                              fontWeight: 700,
-                                            }}
-                                          >
-                                            BP Sent
-                                          </span>
-                                        )}
-                                    </div>
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      fontFamily: 'monospace',
-                                      fontSize: 10,
-                                      color: C.muted,
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {r.poNumber || '-'}
-                                  </td>
-                                  <td
-                                    style={{
-                                      padding: '10px 14px',
-                                      fontFamily: 'monospace',
-                                      fontSize: 10,
-                                      color: C.muted,
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    {r.submitted}
-                                  </td>
-                                  <td style={{ padding: '10px 14px' }}>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelReq(r);
-                                      }}
-                                      style={{
-                                        background: C.accent,
-                                        color: '#fff',
-                                        border: 'none',
-                                        borderRadius: 8,
-                                        padding: '5px 12px',
-                                        fontSize: 11,
-                                        fontWeight: 700,
-                                        cursor: 'pointer',
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                    >
-                                      Review
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            });
-                          });
+                                    );
+                                  })()
+                                )}
+                              </td>
+                              <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.title}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title || '-'}</span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{item.allocadiaId || '-'}</td>
+                              <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{item.campaignId || '-'}</td>
+                              <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#f59e0b', whiteSpace: 'nowrap' }}>{`USD ${mdfUSD.toLocaleString('en-US')}`}</td>
+                              <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  <span style={{ background: sColor + '18', color: sColor, border: `1px solid ${sColor}30`, borderRadius: 6, padding: '3px 8px', fontSize: 10, fontWeight: 700 }}>
+                                    {statusLabels[itemStatus] || itemStatus}
+                                  </span>
+                                  {r.partnerNotified && (r.status === 'signed' || r.status === 'po_raised') && (
+                                    <span title={`Signed BP emailed to partner${r.notifiedAt ? ' on ' + r.notifiedAt : ''}`}
+                                      style={{ background: C.success + '18', color: C.success, border: `1px solid ${C.success}30`, borderRadius: 6, padding: '3px 8px', fontSize: 9, fontWeight: 700 }}>
+                                      BP Sent
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: 10, color: C.muted, whiteSpace: 'nowrap' }}>{r.poNumber || '-'}</td>
+                              <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: 10, color: C.muted, whiteSpace: 'nowrap' }}>{r.submitted}</td>
+                              <td style={{ padding: '10px 14px' }}>
+                                <button
+                                  onClick={e => { e.stopPropagation(); setSelReq(r); }}
+                                  style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                >Review</button>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      });
 
-                        return (
-                          <>
-                            {/* === NEEDS ATTENTION === */}
-                            {needsAttention.length > 0 && (
-                              <tr style={{ background: C.danger + '10' }}>
-                                <td
-                                  colSpan={13}
-                                  style={{ padding: '8px 14px' }}
-                                >
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 8,
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: '50%',
-                                        background: C.danger,
-                                        flexShrink: 0,
-                                      }}
-                                    />
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        fontWeight: 800,
-                                        color: C.danger,
-                                        letterSpacing: '0.08em',
-                                        textTransform: 'uppercase',
-                                      }}
-                                    >
-                                      Needs Attention — {needsAttention.length}{' '}
-                                      request
-                                      {needsAttention.length !== 1 ? 's' : ''}
-                                    </span>
-                                    <span
-                                      style={{ fontSize: 10, color: C.muted }}
-                                    >
-                                      {needsAttention.filter(
-                                        (r) => !r.assignedTo
-                                      ).length > 0 &&
-                                        `${
-                                          needsAttention.filter(
-                                            (r) => !r.assignedTo
-                                          ).length
-                                        } unassigned`}
-                                      {needsAttention.filter(
-                                        (r) => !r.assignedTo
-                                      ).length > 0 &&
-                                        needsAttention.some((r) =>
-                                          (r.items || []).some(
-                                            (it) =>
-                                              [
-                                                'cancelled_by_partner',
-                                                'postponed',
-                                              ].includes(it.itemStatus) &&
-                                              !it.acknowledged
-                                          )
-                                        ) &&
-                                        ' · '}
-                                      {needsAttention.some((r) =>
-                                        (r.items || []).some(
-                                          (it) =>
-                                            it.itemStatus ===
-                                              'cancelled_by_partner' &&
-                                            !it.acknowledged
-                                        )
-                                      ) &&
-                                        `${cancelledByPartnerCnt} cancelled by partner`}
-                                      {cancelledByPartnerCnt > 0 &&
-                                        postponedByPartnerCnt > 0 &&
-                                        ' · '}
-                                      {postponedByPartnerCnt > 0 &&
-                                        `${postponedByPartnerCnt} postponed`}
-                                    </span>
-                                  </div>
+                      return (
+                        <>
+                          {/* === NEEDS ATTENTION === */}
+                          {needsAttention.length > 0 && (
+                            <tr style={{ background: C.danger + '10' }}>
+                              <td colSpan={13} style={{ padding: '8px 14px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.danger, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: C.danger, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                    Needs Attention — {needsAttention.length} request{needsAttention.length !== 1 ? 's' : ''}
+                                  </span>
+                                  <span style={{ fontSize: 10, color: C.muted }}>
+                                    {needsAttention.filter(r => !r.assignedTo).length > 0 && `${needsAttention.filter(r => !r.assignedTo).length} unassigned`}
+                                    {needsAttention.filter(r => !r.assignedTo).length > 0 && needsAttention.some(r => (r.items||[]).some(it => ['cancelled_by_partner','postponed'].includes(it.itemStatus) && !it.acknowledged)) && ' · '}
+                                    {needsAttention.some(r => (r.items||[]).some(it => it.itemStatus === 'cancelled_by_partner' && !it.acknowledged)) && `${cancelledByPartnerCnt} cancelled by partner`}
+                                    {cancelledByPartnerCnt > 0 && postponedByPartnerCnt > 0 && ' · '}
+                                    {postponedByPartnerCnt > 0 && `${postponedByPartnerCnt} postponed`}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {renderRows(needsAttention, 0)}
+
+                          {/* === IN PROGRESS === */}
+                          {inProgress.length > 0 && (
+                            <tr style={{ background: C.success + '10' }}>
+                              <td colSpan={13} style={{ padding: '8px 14px', borderTop: needsAttention.length > 0 ? `2px solid ${C.border}` : 'none' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.success, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: C.success, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                    In Progress — {inProgress.length} request{inProgress.length !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {renderRows(inProgress, 1000)}
+
+                          {/* === COMPLETED === */}
+                          {completed.length > 0 && (
+                            <tr style={{ background: C.faint }}>
+                              <td colSpan={13} style={{ padding: '8px 14px', borderTop: `2px solid ${C.border}` }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.muted, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                    Completed — {completed.length} request{completed.length !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {renderRows(completed, 2000)}
+
+                          {/* Totals footer */}
+                          {filteredR.length > 0 && (() => {
+                            const allItems = filteredR.flatMap(r => r.items || []);
+                            const totUSD = allItems.reduce((s, it) => s + toUSD(it.mdfRequest || Math.round((it.amount || 0) * 0.5), it.localCurrency || 'EUR'), 0);
+                            return (
+                              <tr style={{ borderTop: `2px solid ${C.border}`, background: C.faint }}>
+                                <td colSpan={10} style={{ padding: '10px 14px', fontWeight: 800, fontSize: 12 }}>
+                                  TOTAL — {filteredR.length} requests · {allItems.length} activities
                                 </td>
-                              </tr>
-                            )}
-                            {renderRows(needsAttention, 0)}
-
-                            {/* === IN PROGRESS === */}
-                            {inProgress.length > 0 && (
-                              <tr style={{ background: C.success + '10' }}>
-                                <td
-                                  colSpan={13}
-                                  style={{
-                                    padding: '8px 14px',
-                                    borderTop:
-                                      needsAttention.length > 0
-                                        ? `2px solid ${C.border}`
-                                        : 'none',
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 8,
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: '50%',
-                                        background: C.success,
-                                        flexShrink: 0,
-                                      }}
-                                    />
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        fontWeight: 800,
-                                        color: C.success,
-                                        letterSpacing: '0.08em',
-                                        textTransform: 'uppercase',
-                                      }}
-                                    >
-                                      In Progress — {inProgress.length} request
-                                      {inProgress.length !== 1 ? 's' : ''}
-                                    </span>
-                                  </div>
+                                <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: '#f59e0b' }}>
+                                  {`USD ${totUSD.toLocaleString('en-US')}`}
                                 </td>
+                                <td colSpan={4} />
                               </tr>
-                            )}
-                            {renderRows(inProgress, 1000)}
-
-                            {/* === COMPLETED === */}
-                            {completed.length > 0 && (
-                              <tr style={{ background: C.faint }}>
-                                <td
-                                  colSpan={13}
-                                  style={{
-                                    padding: '8px 14px',
-                                    borderTop: `2px solid ${C.border}`,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: 8,
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: '50%',
-                                        background: C.muted,
-                                        flexShrink: 0,
-                                      }}
-                                    />
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        fontWeight: 800,
-                                        color: C.muted,
-                                        letterSpacing: '0.08em',
-                                        textTransform: 'uppercase',
-                                      }}
-                                    >
-                                      Completed — {completed.length} request
-                                      {completed.length !== 1 ? 's' : ''}
-                                    </span>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                            {renderRows(completed, 2000)}
-
-                            {/* Totals footer */}
-                            {filteredR.length > 0 &&
-                              (() => {
-                                const allItems = filteredR.flatMap(
-                                  (r) => r.items || []
-                                );
-                                const totUSD = allItems.reduce(
-                                  (s, it) =>
-                                    s +
-                                    toUSD(
-                                      it.mdfRequest ||
-                                        Math.round((it.amount || 0) * 0.5),
-                                      it.localCurrency || 'EUR'
-                                    ),
-                                  0
-                                );
-                                return (
-                                  <tr
-                                    style={{
-                                      borderTop: `2px solid ${C.border}`,
-                                      background: C.faint,
-                                    }}
-                                  >
-                                    <td
-                                      colSpan={10}
-                                      style={{
-                                        padding: '10px 14px',
-                                        fontWeight: 800,
-                                        fontSize: 12,
-                                      }}
-                                    >
-                                      TOTAL — {filteredR.length} requests ·{' '}
-                                      {allItems.length} activities
-                                    </td>
-                                    <td
-                                      style={{
-                                        padding: '10px 14px',
-                                        textAlign: 'right',
-                                        fontFamily: 'monospace',
-                                        fontWeight: 800,
-                                        color: '#f59e0b',
-                                      }}
-                                    >
-                                      {`USD ${totUSD.toLocaleString('en-US')}`}
-                                    </td>
-                                    <td colSpan={4} />
-                                  </tr>
-                                );
-                              })()}
-                          </>
-                        );
-                      })()}
+                            );
+                          })()}
+                        </>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -16002,14 +13281,13 @@ export default function App() {
           <ClaimsTab
             claims={claims}
             setClaims={(updater) => {
-              setClaims((prev) => {
-                const next =
-                  typeof updater === 'function' ? updater(prev) : updater;
-                const changed = next.filter((c) => {
-                  const old = prev.find((p) => p.id === c.id);
+              setClaims(prev => {
+                const next = typeof updater === 'function' ? updater(prev) : updater;
+                const changed = next.filter(c => {
+                  const old = prev.find(p => p.id === c.id);
                   return !old || JSON.stringify(old) !== JSON.stringify(c);
                 });
-                changed.forEach((c) => dbSaveClaim(c).catch(() => {}));
+                changed.forEach(c => dbSaveClaim(c).catch(() => {}));
                 return next;
               });
             }}
@@ -16098,18 +13376,17 @@ export default function App() {
           partners={partners}
           requests={requests}
           setRequests={(updater) => {
-            setRequests((prev) => {
-              const next =
-                typeof updater === 'function' ? updater(prev) : updater;
-              // Save changed requests to DB
-              const changed = next.filter((r) => {
-                const old = prev.find((p) => p.id === r.id);
-                return !old || JSON.stringify(old) !== JSON.stringify(r);
+              setRequests(prev => {
+                const next = typeof updater === 'function' ? updater(prev) : updater;
+                // Save changed requests to DB
+                const changed = next.filter(r => {
+                  const old = prev.find(p => p.id === r.id);
+                  return !old || JSON.stringify(old) !== JSON.stringify(r);
+                });
+                changed.forEach(r => dbSaveRequest(r).catch(() => {}));
+                return next;
               });
-              changed.forEach((r) => dbSaveRequest(r).catch(() => {}));
-              return next;
-            });
-          }}
+            }}
           selectedItems={selectedItems}
           setSelectedItems={setSelectedItems}
           addHistory={addHistory}
@@ -16161,8 +13438,7 @@ export default function App() {
                   selItems.forEach(({ item, request }) => {
                     if (!updatedMap[request.id]) updatedMap[request.id] = {};
                     updatedMap[request.id][item.id] = {
-                      allocadiaId:
-                        allocIds?.[item.id] || item.allocadiaId || '',
+                      allocadiaId: allocIds?.[item.id] || item.allocadiaId || '',
                       campaignId: campIds?.[item.id] || item.campaignId || '',
                     };
                   });
@@ -16198,13 +13474,7 @@ export default function App() {
           generateFn={generateMDFBusinessPlan}
           onUpdateStatus={(reqId, po, allocIds, campIds) => {
             if (reqId) {
-              const now = new Date().toLocaleString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              });
+              const now = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
               setRequests((prev) =>
                 prev.map((r) => {
                   if (r.id !== reqId) return r;
@@ -16219,12 +13489,7 @@ export default function App() {
                         ? campIds[it.id]
                         : it.campaignId || '',
                   }));
-                  return {
-                    ...r,
-                    status: 'sent_for_signature',
-                    bpGeneratedAt: now,
-                    items: updatedItems,
-                  };
+                  return { ...r, status: 'sent_for_signature', bpGeneratedAt: now, items: updatedItems };
                 })
               );
               addHistory(
@@ -16248,11 +13513,7 @@ export default function App() {
           isPartnerView={isPartnerView}
           onAdd={(req) => {
             setRequests((p) => [req, ...p]);
-            addHistory(
-              `New request ${req.id} from ${req.partner}`,
-              req.id,
-              'create'
-            );
+            addHistory(`New request ${req.id} from ${req.partner}`, req.id, 'create');
             toast('Request submitted!');
             dbSaveRequest(req).catch(() => {});
           }}
@@ -16260,68 +13521,53 @@ export default function App() {
         />
       )}
       {editPartner && (
-        <EditPartnerModal
-          key={editPartner._new ? 'new' : editPartner.id}
-          partner={editPartner._new ? null : editPartner}
-          onSave={(updated) => {
-            if (editPartner._new) {
-              setPartners((prev) => [...prev, updated]);
-              addHistory(`Partner ${updated.name} added`, updated.id, 'create');
-              toast(`${updated.name} added`);
-            } else {
-              setPartners((prev) =>
-                prev.map((p) => (p.id === updated.id ? updated : p))
-              );
-              addHistory(`Partner ${updated.name} updated`, updated.id, 'edit');
-              toast(`${updated.name} saved`);
-            }
-            // Save to Supabase so partner portal sees the change immediately
-            dbSavePartner(updated).catch(() => {});
-            setEditPartner(null);
-          }}
-          onClose={() => setEditPartner(null)}
-        />
-      )}
+          <EditPartnerModal
+            key={editPartner._new ? 'new' : editPartner.id}
+            partner={editPartner._new ? null : editPartner}
+            onSave={(updated) => {
+              if (editPartner._new) {
+                setPartners(prev => [...prev, updated]);
+                addHistory(`Partner ${updated.name} added`, updated.id, 'create');
+                toast(`${updated.name} added`);
+              } else {
+                setPartners(prev => prev.map(p => p.id === updated.id ? updated : p));
+                addHistory(`Partner ${updated.name} updated`, updated.id, 'edit');
+                toast(`${updated.name} saved`);
+              }
+              // Save to Supabase so partner portal sees the change immediately
+              dbSavePartner(updated).catch(() => {});
+              setEditPartner(null);
+            }}
+            onClose={() => setEditPartner(null)}
+          />
+        )}
       {showPipelineImport && (
-        <PipelineImportModal
-          C={C}
-          onImport={(data, count) => {
-            setPipelineData((prev) => ({ ...prev, ...data }));
-            toast(`Pipeline imported: ${count} campaign IDs updated`);
-            setTimeout(() => setShowPipelineImport(false), 1500);
-          }}
-          onClose={() => setShowPipelineImport(false)}
-        />
-      )}
+          <PipelineImportModal
+            C={C}
+            onImport={(data, count) => {
+              setPipelineData(prev => ({ ...prev, ...data }));
+              toast(`Pipeline imported: ${count} campaign IDs updated`);
+              setTimeout(() => setShowPipelineImport(false), 1500);
+            }}
+            onClose={() => setShowPipelineImport(false)}
+          />
+        )}
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
           onImport={(pts, reqs) => {
             const existingCount = partners.length;
-            const importedNames = new Set(pts.map((p) => p.name));
-            const referencedNames = [
-              ...new Set([
-                ...requests.map((r) => r.partner),
-                ...claims.map((c) => c.partner),
-              ]),
-            ];
-            const orphaned = referencedNames.filter(
-              (n) => !importedNames.has(n)
-            );
-            let msg =
-              existingCount > 0
-                ? `This will REPLACE all ${existingCount} existing partners with ${pts.length} imported partners.`
-                : null;
+            const importedNames = new Set(pts.map(p => p.name));
+            const referencedNames = [...new Set([
+              ...requests.map(r => r.partner),
+              ...claims.map(c => c.partner),
+            ])];
+            const orphaned = referencedNames.filter(n => !importedNames.has(n));
+            let msg = existingCount > 0
+              ? `This will REPLACE all ${existingCount} existing partners with ${pts.length} imported partners.`
+              : null;
             if (orphaned.length > 0) {
-              msg =
-                (msg || '') +
-                `\n\nWARNING: ${
-                  orphaned.length
-                } partner(s) have active requests/claims but are NOT in the import file:\n${orphaned
-                  .slice(0, 5)
-                  .join(', ')}${
-                  orphaned.length > 5 ? ` and ${orphaned.length - 5} more` : ''
-                }.\nThose records will become orphaned.`;
+              msg = (msg || '') + `\n\nWARNING: ${orphaned.length} partner(s) have active requests/claims but are NOT in the import file:\n${orphaned.slice(0,5).join(', ')}${orphaned.length > 5 ? ` and ${orphaned.length - 5} more` : ''}.\nThose records will become orphaned.`;
             }
             if (msg && !window.confirm((msg || '') + '\n\nContinue?')) return;
             setPartners(pts);
@@ -16331,11 +13577,7 @@ export default function App() {
             // BREAK-008 FIX: batch saves 10 at a time to avoid Supabase rate limits
             (async () => {
               for (let i = 0; i < pts.length; i += 10) {
-                await Promise.all(
-                  pts
-                    .slice(i, i + 10)
-                    .map((p) => dbSavePartner(p).catch(() => {}))
-                );
+                await Promise.all(pts.slice(i, i + 10).map(p => dbSavePartner(p).catch(() => {})));
               }
             })();
             addHistory(
