@@ -888,7 +888,8 @@ const claimStatusLabel = {
   submitted: 'Submitted',
   marketing_review: 'Mktg Review',
   finance_review: 'Finance Review',
-  approved: 'Approved',
+  approved: 'In Review',
+  po_raised: 'Approved',
   rejected: 'Rejected',
   paid: 'Paid',
 };
@@ -1103,10 +1104,10 @@ const StatusBadge = ({ status }) => {
     inactive: { c: C.muted, l: 'Inactive' },
     'at risk': { c: C.warning, l: 'At Risk' },
     request_submitted: { c: C.warning, l: 'Request Submitted' },
-    approved: { c: '#10b981', l: 'Approved' },
+    approved: { c: C.warning, l: 'In Review' },
     sent_for_signature: { c: C.purple, l: 'Sent for Signature' },
     signed: { c: C.cyan || '#06b6d4', l: 'Signed' },
-    po_raised: { c: C.accent, l: 'PO Raised' },
+    po_raised: { c: '#10b981', l: 'Approved' },
     approved_and_signed: { c: C.success, l: 'Approved and Signed' },
     rejected: { c: C.danger, l: 'Rejected' },
     cancelled_by_partner: { c: C.danger, l: 'Cancelled by Partner' },
@@ -6348,10 +6349,10 @@ const AnalyticsTab = ({
               placeholder="All Statuses"
               options={[
                 { value: 'request_submitted', label: 'Submitted' },
-                { value: 'approved', label: 'Approved' },
+                { value: 'approved', label: 'In Review' },
                 { value: 'sent_for_signature', label: 'Sent for Signature' },
                 { value: 'signed', label: 'Signed' },
-                { value: 'po_raised', label: 'PO Raised' },
+                { value: 'po_raised', label: 'Approved' },
                 { value: 'rejected', label: 'Rejected' },
                 {
                   value: 'cancelled_by_partner',
